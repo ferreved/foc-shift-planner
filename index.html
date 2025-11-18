@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOC Shift Planner Dashboard</title>
+    <title>FOC Admin - Create Schedule</title>
     <style>
         body { margin: 0; padding: 0; background: #f5f5f5; font-family: Arial, sans-serif; }
         .time-indicator { background: #ffebee !important; animation: pulse 2s infinite; }
@@ -33,7 +33,7 @@
         ];
         const outOfOpsReasons = ['1:1 Meeting Long', '1:1 Meeting Short', 'Interview', 'Interview Shadow', 'Meeting', 'Training', 'Project', 'Other'];
         
-        let currentTeam = 'A', availableEngineers = [...TEAMS.A], extraEngineers = [], engineersOff = [], scheduleData = {}, shiftLead = '', stepUpLead = '';
+        let currentTeam = 'A', availableEngineers = [...TEAMS.A], extraEngineers = [], engineersOff = [], scheduleData = {}, shiftLead = '', stepUpLead = '', userInputs = {};
         
         // Firebase Configuration
         const firebaseConfig = {
@@ -47,13 +47,14 @@
         };
         
         let firebaseInitialized = false;
-        let database, scheduleRef;
+        let database, scheduleRef, userInputsRef;
         
         // Initialize Firebase
         try {
             firebase.initializeApp(firebaseConfig);
             database = firebase.database();
             scheduleRef = database.ref('schedule');
+            userInputsRef = database.ref('userInputs');
             firebaseInitialized = true;
         } catch (error) {
             firebaseInitialized = false;
@@ -82,6 +83,13 @@
                     updateDisplayFromSync();
                 }
             });
+            
+            // Listen to user inputs from dashboard
+            userInputsRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                userInputs = data || {};
+                updateUserInputsDisplay();
+            });
         }
         
         function updateDisplayFromSync() {
@@ -93,11 +101,64 @@
             updateScheduleTable();
         }
         
+        let isAuthenticated = false;
+        
+        function showLogin() {
+            document.getElementById('app').innerHTML = `
+                <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 400px; width: 100%;">
+                        <h2 style="text-align: center; color: #333; margin-bottom: 30px;">🔐 Admin Access</h2>
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Username:</label>
+                            <input type="text" id="username" placeholder="Enter username" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
+                        </div>
+                        <div style="margin-bottom: 30px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Password:</label>
+                            <input type="password" id="password" placeholder="Enter password" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
+                        </div>
+                        <button onclick="login()" style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-bottom: 15px;">Login</button>
+                        <div style="text-align: center;">
+                            <a href="dashboard.html" style="color: #007bff; text-decoration: none;">📊 View Public Dashboard</a>
+                        </div>
+                    </div>
+                </div>`;
+        }
+        
+        function login() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            
+            // Simple authentication - in production, use proper auth
+            const validUsers = {
+                'admin': 'foc2024',
+                'shiftlead': 'lead123',
+                'manager': 'mgr456'
+            };
+            
+            if (validUsers[username] === password) {
+                isAuthenticated = true;
+                initDashboard();
+            } else {
+                alert('Invalid credentials. Please try again.');
+            }
+        }
+        
         function initDashboard() {
+            if (!isAuthenticated) {
+                showLogin();
+                return;
+            }
+            
             setupRealtimeSync();
             document.getElementById('app').innerHTML = `
                 <div style="margin: 20px;">
-                    <h1 style="color: #232F3E; text-align: center;">FOC Shift Planner Dashboard</h1>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h1 style="color: #232F3E; margin: 0;">FOC Admin - Create Schedule</h1>
+                        <div>
+                            <a href="dashboard.html" target="_blank" style="background: #28a745; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-right: 10px;">📊 View Dashboard</a>
+                            <button onclick="logout()" style="background: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
+                        </div>
+                    </div>
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                         <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
                             <button id="new-schedule-btn" style="background: #ff4444; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">New Schedule</button>
@@ -107,6 +168,7 @@
                             </select></div>
                             <button id="auto-populate-btn" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Auto Populate</button>
                             <div id="sync-status" class="${firebaseInitialized ? 'status-online' : 'status-offline'}">${firebaseInitialized ? '🔥 Live Sync ON' : '⚠️ Offline Mode'}</div>
+                            <button onclick="publishSchedule()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">📤 Publish to Dashboard</button>
                         </div>
                         <div id="current-time" style="text-align: center; font-size: 18px; font-weight: bold; margin-top: 10px; color: #007bff;"></div>
                         <div style="margin-top: 15px; display: flex; gap: 20px; flex-wrap: wrap;">
@@ -156,6 +218,12 @@
                             <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">15:00 to 16:00</td><td colspan="21" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td></tr>
                         </table>
                     </div>
+                    
+                    <!-- User Inputs from Dashboard -->
+                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">
+                        <h3 style="color: #232F3E; margin-top: 0;">📝 Live User Inputs from Dashboard</h3>
+                        <div id="user-inputs-display" style="font-size: 14px;"></div>
+                    </div>
                     <div style="background: #232F3E; color: white; padding: 20px; border-radius: 8px; margin-top: 20px; font-family: 'Courier New', monospace;">
                         <h2 style="color: #FF9900; text-align: center; margin-bottom: 20px; font-size: 24px;">FOC LIVE STATUS</h2>
                         <div id="live-status-content" style="font-size: 18px; line-height: 1.6;"></div>
@@ -165,6 +233,47 @@
             initializeScheduleData();
             updateDashboard();
             startTimeClock();
+        }
+        
+        function publishSchedule() {
+            if (confirm('Publish current schedule to dashboard? This will make it visible to all users.')) {
+                syncToFirebase();
+                alert('Schedule published successfully! ✅');
+            }
+        }
+        
+        function updateUserInputsDisplay() {
+            const container = document.getElementById('user-inputs-display');
+            if (!container) return;
+            
+            const inputs = Object.values(userInputs || {});
+            if (inputs.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">No user inputs yet.</p>';
+                return;
+            }
+            
+            // Group by time slot
+            const groupedInputs = {};
+            inputs.forEach(input => {
+                if (!groupedInputs[input.timeSlot]) {
+                    groupedInputs[input.timeSlot] = [];
+                }
+                groupedInputs[input.timeSlot].push(input);
+            });
+            
+            let html = '';
+            Object.keys(groupedInputs).sort().forEach(timeSlot => {
+                html += `<div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px; border-left: 4px solid #007bff;">`;
+                html += `<strong style="color: #007bff;">${timeSlot}</strong><br>`;
+                groupedInputs[timeSlot].forEach(input => {
+                    const icon = input.type === 'break' ? '☕' : '📅';
+                    const color = input.type === 'break' ? '#28a745' : '#dc3545';
+                    html += `<span style="color: ${color}; margin-right: 15px;">${icon} ${input.alias} - ${input.type === 'break' ? input.duration : input.reason + ' (' + input.duration + ')'}</span>`;
+                });
+                html += `</div>`;
+            });
+            
+            container.innerHTML = html;
         }
 
         function attachEventListeners() {
@@ -335,6 +444,7 @@
             });
             
             updateLiveStatus();
+            updateUserInputsDisplay();
         }
 
         function getAvailableEngineersForSlot(time, type, index) {
@@ -405,7 +515,7 @@
             const statusContent = document.getElementById('live-status-content');
             if (!statusContent) return;
             
-            let statusHTML = `<div style="text-align: center; font-size: 20px; margin-bottom: 15px; color: #FF9900;">FOC LIVE: TEAM ${currentTeam}</div>`;
+            let statusHTML = `<div style="text-align: center; font-size: 20px; margin-bottom: 15px; color: #FF9900;">FOC ADMIN LIVE: TEAM ${currentTeam}</div>`;
             
             if (currentTimeSlot && scheduleData[currentTimeSlot]) {
                 const data = scheduleData[currentTimeSlot];
@@ -418,7 +528,16 @@
                 statusHTML += `<div style="color: #4CAF50; font-size: 16px; margin-bottom: 10px;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div>`;
-                statusHTML += `<div style="margin-bottom: 8px;">⏸️ Out of OPS: ${outOfOpsCount} Engineers</div>`;
+                // Count user inputs for current slot
+                const userBreaksCount = Object.values(userInputs || {}).filter(input => 
+                    input.timeSlot === currentTimeSlot && input.type === 'break'
+                ).length;
+                const userMeetingsCount = Object.values(userInputs || {}).filter(input => 
+                    input.timeSlot === currentTimeSlot && input.type === 'meeting'
+                ).length;
+                
+                statusHTML += `<div style="margin-bottom: 8px;">☕ User Breaks: ${userBreaksCount} Engineers</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">📅 Admin + User Meetings: ${outOfOpsCount + userMeetingsCount} Engineers</div>`;
                 
                 if (outOfOpsCount > 0) {
                     statusHTML += `<div style="margin-top: 10px; font-size: 14px; color: #FFB74D;">`;
@@ -432,21 +551,13 @@
                 statusHTML += `</div>`;
                 
                 statusHTML += `<div>`;
-                statusHTML += `<div style="color: #2196F3; font-size: 16px; margin-bottom: 10px;">👥 ACTIVE ENGINEERS</div>`;
+                statusHTML += `<div style="color: #2196F3; font-size: 16px; margin-bottom: 10px;">👥 DASHBOARD STATS</div>`;
+                statusHTML += `<div style="font-size: 14px;">`;
+                statusHTML += `Total Active: ${skgCount + textablesCount} Engineers<br>`;
+                statusHTML += `Total Out of OPS: ${outOfOpsCount + userMeetingsCount + userBreaksCount} Engineers<br>`;
+                statusHTML += `Dashboard Users: ${Object.keys(userInputs || {}).length} Inputs`;
+                statusHTML += `</div>`;
                 
-                if (skgCount > 0) {
-                    statusHTML += `<div style="margin-bottom: 8px; color: #4CAF50;">SKG Team:</div>`;
-                    data.skg.forEach(eng => {
-                        if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`;
-                    });
-                }
-                
-                if (textablesCount > 0) {
-                    statusHTML += `<div style="margin-bottom: 8px; margin-top: 10px; color: #FF9800;">Textables Team:</div>`;
-                    data.textables.forEach(eng => {
-                        if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`;
-                    });
-                }
                 statusHTML += `</div>`;
                 statusHTML += `</div>`;
             } else {
@@ -591,8 +702,19 @@
             }
         }
 
+        function logout() {
+            isAuthenticated = false;
+            showLogin();
+        }
+        
         // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initDashboard);
+        document.addEventListener('DOMContentLoaded', () => {
+            if (isAuthenticated) {
+                initDashboard();
+            } else {
+                showLogin();
+            }
+        });
     </script>
 </body>
 </html>
