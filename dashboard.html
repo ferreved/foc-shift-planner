@@ -102,11 +102,13 @@
             // Listen to schedule changes from admin
             scheduleRef.on('value', (snapshot) => {
                 const data = snapshot.val();
+                console.log('Dashboard received data:', data);
                 if (data) {
                     scheduleData = data.scheduleData || {};
                     currentTeam = data.currentTeam || 'A';
                     shiftLead = data.shiftLead || '';
                     stepUpLead = data.stepUpLead || '';
+                    console.log('Updated dashboard with:', { currentTeam, shiftLead, stepUpLead });
                     updateDashboard();
                 }
             });
