@@ -88,6 +88,8 @@
         let scheduleData = {};
         let userInputs = {};
         let currentTeam = 'A';
+        let shiftLead = '';
+        let stepUpLead = '';
         
         function syncUserInput(data) {
             if (!firebaseInitialized) return;
@@ -103,6 +105,8 @@
                 if (data) {
                     scheduleData = data.scheduleData || {};
                     currentTeam = data.currentTeam || 'A';
+                    shiftLead = data.shiftLead || '';
+                    stepUpLead = data.stepUpLead || '';
                     updateDashboard();
                 }
             });
@@ -138,19 +142,35 @@
                     
                     <!-- User Input Section -->
                     <div class="card">
-                        <h3 style="margin-top: 0;">Add Your Break or Meeting</h3>
+                        <h3 style="margin-top: 0; color: #28a745;">☕ Add Break</h3>
                         <div class="input-group">
-                            <select id="user-alias" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="break-engineer" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="">Select Engineer</option>
                                 ${ALL_ENGINEERS.map(eng => `<option value="${eng}">${eng}</option>`).join('')}
                             </select>
-                            <select id="time-slot" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="break-time-slot" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="">Select Time Slot</option>
                                 ${TIME_SLOTS.map(slot => `<option value="${slot.time}">${slot.label}</option>`).join('')}
                             </select>
+                            <select id="break-duration" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="15">15 minutes</option>
+                                <option value="30">30 minutes</option>
+                            </select>
+                            <button class="btn btn-break" onclick="addBreak()">Add Break</button>
                         </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h3 style="margin-top: 0; color: #007bff;">📅 Add Meeting</h3>
                         <div class="input-group">
-                            <button class="btn btn-break" onclick="addBreak()">Add Break (15min + 30min lunch)</button>
+                            <select id="meeting-engineer" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="">Select Engineer</option>
+                                ${ALL_ENGINEERS.map(eng => `<option value="${eng}">${eng}</option>`).join('')}
+                            </select>
+                            <select id="meeting-time-slot" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                                <option value="">Select Time Slot</option>
+                                ${TIME_SLOTS.map(slot => `<option value="${slot.time}">${slot.label}</option>`).join('')}
+                            </select>
                             <select id="meeting-duration" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="15">15 minutes</option>
                                 <option value="30">30 minutes</option>
@@ -174,11 +194,12 @@
         }
         
         function addBreak() {
-            const alias = document.getElementById('user-alias').value;
-            const timeSlot = document.getElementById('time-slot').value;
+            const alias = document.getElementById('break-engineer').value;
+            const timeSlot = document.getElementById('break-time-slot').value;
+            const duration = document.getElementById('break-duration').value;
             
-            if (!alias || !timeSlot) {
-                alert('Please select an engineer and time slot');
+            if (!alias || !timeSlot || !duration) {
+                alert('Please select engineer, time slot, and duration');
                 return;
             }
             
@@ -186,22 +207,23 @@
                 type: 'break',
                 alias: alias,
                 timeSlot: timeSlot,
-                duration: '15min + 30min lunch',
+                duration: duration + ' minutes',
                 timestamp: Date.now()
             };
             
             syncUserInput(breakData);
             
             // Clear inputs
-            document.getElementById('user-alias').value = '';
-            document.getElementById('time-slot').value = '';
+            document.getElementById('break-engineer').value = '';
+            document.getElementById('break-time-slot').value = '';
+            document.getElementById('break-duration').value = '15';
             
             alert('Break added successfully!');
         }
         
         function addMeeting() {
-            const alias = document.getElementById('user-alias').value;
-            const timeSlot = document.getElementById('time-slot').value;
+            const alias = document.getElementById('meeting-engineer').value;
+            const timeSlot = document.getElementById('meeting-time-slot').value;
             const duration = document.getElementById('meeting-duration').value;
             const reason = document.getElementById('meeting-reason').value;
             
@@ -222,8 +244,8 @@
             syncUserInput(meetingData);
             
             // Clear inputs
-            document.getElementById('user-alias').value = '';
-            document.getElementById('time-slot').value = '';
+            document.getElementById('meeting-engineer').value = '';
+            document.getElementById('meeting-time-slot').value = '';
             document.getElementById('meeting-duration').value = '15';
             document.getElementById('meeting-reason').value = '';
             
@@ -270,7 +292,14 @@
                         <div class="team-section">
                             <strong style="color: #4CAF50;">🔍 SKG Team:</strong>
                             <div class="engineer-list">
-                                ${data.skg.filter(eng => eng).map(eng => `<span class="engineer-tag">${eng}</span>`).join('') || '<span style="color: #999;">No assignments</span>'}
+                                ${data.skg.filter(eng => eng).map(eng => {
+                                    const userBreak = userBreaks.find(b => b.alias === eng);
+                                    const userMeeting = userMeetings.find(m => m.alias === eng);
+                                    let icon = '';
+                                    if (userBreak) icon = ` ☕${userBreak.duration.replace(' minutes', 'm')}`;
+                                    if (userMeeting) icon = ` 📅${userMeeting.duration.replace(' minutes', 'm')}`;
+                                    return `<span class="engineer-tag">${eng}${icon}</span>`;
+                                }).join('') || '<span style="color: #999;">No assignments</span>'}
                             </div>
                         </div>
                         
@@ -280,7 +309,14 @@
                         <div class="team-section">
                             <strong style="color: #FF9800;">📝 Textables Team:</strong>
                             <div class="engineer-list">
-                                ${data.textables.filter(eng => eng).map(eng => `<span class="engineer-tag">${eng}</span>`).join('') || '<span style="color: #999;">No assignments</span>'}
+                                ${data.textables.filter(eng => eng).map(eng => {
+                                    const userBreak = userBreaks.find(b => b.alias === eng);
+                                    const userMeeting = userMeetings.find(m => m.alias === eng);
+                                    let icon = '';
+                                    if (userBreak) icon = ` ☕${userBreak.duration.replace(' minutes', 'm')}`;
+                                    if (userMeeting) icon = ` 📅${userMeeting.duration.replace(' minutes', 'm')}`;
+                                    return `<span class="engineer-tag">${eng}${icon}</span>`;
+                                }).join('') || '<span style="color: #999;">No assignments</span>'}
                             </div>
                         </div>
                         
@@ -321,11 +357,16 @@
             
             let statusHTML = `<div style="font-size: 18px; margin-bottom: 20px; color: #FFD700;">TEAM ${currentTeam} - ${currentTimeSlot || 'OFF HOURS'}</div>`;
             
+            // Display shift lead and step-up lead
+            statusHTML += `<div style="font-size: 16px; margin-bottom: 15px; color: #FFD700;">`;
+            statusHTML += `Shift Lead: ${shiftLead || 'Not Set'} | Step-up Lead: ${stepUpLead || 'Not Set'}`;
+            statusHTML += `</div>`;
+            
             if (currentTimeSlot && scheduleData[currentTimeSlot]) {
                 const data = scheduleData[currentTimeSlot];
                 const skgCount = data.skg.filter(eng => eng !== '').length;
                 const textablesCount = data.textables.filter(eng => eng !== '').length;
-                const outOfOpsCount = data.outOfOps.filter(item => item.engineer !== '').length;
+                const outOfOpsCount = data.outOfOps ? data.outOfOps.filter(item => item.engineer !== '').length : 0;
                 
                 // Count user inputs for current slot
                 const userBreaksCount = Object.values(userInputs || {}).filter(input => 
@@ -338,23 +379,34 @@
                 const totalActive = skgCount + textablesCount;
                 const totalOut = outOfOpsCount + userMeetingsCount + userBreaksCount;
                 
+                // Get engineer names for each category
+                const skgNames = data.skg.filter(eng => eng !== '').join(', ');
+                const textablesNames = data.textables.filter(eng => eng !== '').join(', ');
+                const outOfOpsNames = Object.values(userInputs || {}).filter(input => 
+                    input.timeSlot === currentTimeSlot && (input.type === 'break' || input.type === 'meeting')
+                ).map(input => `${input.alias} (${input.type === 'break' ? '☕' : '📅'}${input.duration.replace(' minutes', 'm')})`).join(', ');
+                
                 statusHTML += `
                     <div class="scoreboard-stats">
                         <div class="stat-box">
                             <div class="stat-number">${skgCount}</div>
                             <div class="stat-label">SKG ENGINEERS</div>
+                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">${skgNames || 'None'}</div>
                         </div>
                         <div class="stat-box">
                             <div class="stat-number">${textablesCount}</div>
                             <div class="stat-label">TEXTABLES ENGINEERS</div>
+                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">${textablesNames || 'None'}</div>
                         </div>
                         <div class="stat-box">
                             <div class="stat-number">${totalActive}</div>
                             <div class="stat-label">TOTAL ACTIVE</div>
+                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">SKG + Textables</div>
                         </div>
                         <div class="stat-box">
                             <div class="stat-number">${totalOut}</div>
                             <div class="stat-label">OUT OF OPS</div>
+                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">${outOfOpsNames || 'None'}</div>
                         </div>
                     </div>`;
             } else {
