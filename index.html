@@ -9,9 +9,6 @@
         .time-indicator { background: #ffebee !important; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         .engineer-select { width: 80px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
-        .break-select { width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
-        .reason-select { width: 120px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
-        .count-display { font-weight: bold; text-align: center; background: #e3f2fd; padding: 4px; }
         .status-online { color: #28a745; font-weight: bold; }
         .status-offline { color: #dc3545; font-weight: bold; }
     </style>
@@ -31,7 +28,6 @@
             { time: '10:00', label: '10:00' }, { time: '11:00', label: '11:00' }, { time: '12:00', label: '12:00' },
             { time: '13:00', label: '13:00' }, { time: '14:00', label: '14:00' }
         ];
-        const outOfOpsReasons = ['1:1 Meeting Long', '1:1 Meeting Short', 'Interview', 'Interview Shadow', 'Meeting', 'Training', 'Project', 'Other'];
         
         let currentTeam = 'A', availableEngineers = [...TEAMS.A], extraEngineers = [], engineersOff = [], scheduleData = {}, shiftLead = '', stepUpLead = '', userInputs = {};
         
@@ -128,7 +124,6 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
-            // Simple authentication - in production, use proper auth
             const validUsers = {
                 'admin': 'foc2024',
                 'shiftlead': 'lead123',
@@ -183,16 +178,14 @@
                     <div style="overflow-x: auto;">
                         <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 12px;">
                             <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #e3f2fd;">Shift Lead</td>
-                            <td colspan="21" style="padding: 8px; border: 1px solid #000; background: #e3f2fd;"><select id="shift-lead-selector" style="width: 200px; padding: 4px;"><option value="">Select Shift Lead</option></select><span id="shift-lead-display" style="margin-left: 10px; font-weight: bold;"></span></td></tr>
+                            <td colspan="12" style="padding: 8px; border: 1px solid #000; background: #e3f2fd;"><select id="shift-lead-selector" style="width: 200px; padding: 4px;"><option value="">Select Shift Lead</option></select><span id="shift-lead-display" style="margin-left: 10px; font-weight: bold;"></span></td></tr>
                             <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #e3f2fd;">Step-up Lead</td>
-                            <td colspan="21" style="padding: 8px; border: 1px solid #000; background: #e3f2fd;"><select id="stepup-lead-selector" style="width: 200px; padding: 4px;"><option value="">Select Step-up Lead</option></select><span id="stepup-lead-display" style="margin-left: 10px; font-weight: bold;"></span></td></tr>
-                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">06:00 to 07:00</td><td colspan="21" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td></tr>
-                            <tr><td colspan="22" style="padding: 4px; border: none;"></td></tr>
+                            <td colspan="12" style="padding: 8px; border: 1px solid #000; background: #e3f2fd;"><select id="stepup-lead-selector" style="width: 200px; padding: 4px;"><option value="">Select Step-up Lead</option></select><span id="stepup-lead-display" style="margin-left: 10px; font-weight: bold;"></span></td></tr>
+                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">06:00 to 07:00</td><td colspan="12" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td></tr>
+                            <tr><td colspan="13" style="padding: 4px; border: none;"></td></tr>
                             <tr><td style="padding: 8px; border: 1px solid #000; background: #f0f0f0;"></td>
                             <td colspan="6" style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Raiding SKG</td>
-                            <td colspan="6" style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Textables and FOC slack requests</td>
-                            <td colspan="4" style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Break interval</td>
-                            <td colspan="4" style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Engineers out of OPS</td></tr>
+                            <td colspan="6" style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Textables and FOC slack requests</td></tr>
                             <tr><td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; font-weight: bold;">Primary</td>
                             <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 1</td>
                             <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 2</td>
@@ -205,17 +198,9 @@
                             <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 3</td>
                             <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 4</td>
                             <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 5</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 6</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">0-15</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">15-30</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">30-45</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">45-60</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Reason 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 2</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Reason 2</td></tr>
+                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 6</td></tr>
                             <tbody id="schedule-tbody"></tbody>
-                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">15:00 to 16:00</td><td colspan="21" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td></tr>
+                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">15:00 to 16:00</td><td colspan="12" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td></tr>
                         </table>
                     </div>
                     
@@ -224,6 +209,7 @@
                         <h3 style="color: #232F3E; margin-top: 0;">📝 Live User Inputs from Dashboard</h3>
                         <div id="user-inputs-display" style="font-size: 14px;"></div>
                     </div>
+                    
                     <div style="background: #232F3E; color: white; padding: 20px; border-radius: 8px; margin-top: 20px; font-family: 'Courier New', monospace;">
                         <h2 style="color: #FF9900; text-align: center; margin-bottom: 20px; font-size: 24px;">FOC LIVE STATUS</h2>
                         <div id="live-status-content" style="font-size: 18px; line-height: 1.6;"></div>
@@ -252,7 +238,6 @@
                 return;
             }
             
-            // Group by time slot
             const groupedInputs = {};
             inputs.forEach(input => {
                 if (!groupedInputs[input.timeSlot]) {
@@ -361,9 +346,7 @@
             TIME_SLOTS.forEach(slot => {
                 scheduleData[slot.time] = {
                     skg: ['', '', '', '', '', ''],
-                    textables: ['', '', '', '', '', ''],
-                    breaks: ['', '', '', ''],
-                    outOfOps: [{ engineer: '', reason: '' }, { engineer: '', reason: '' }]
+                    textables: ['', '', '', '', '', '']
                 };
             });
         }
@@ -406,39 +389,6 @@
                     </td>`;
                 }
                 
-                // Break intervals (4)
-                for (let i = 0; i < 4; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;">
-                        <select class="break-select" onchange="updateScheduleData('${slot.time}', 'breaks', ${i}, this.value)">
-                            <option value="">-</option>
-                            ${availableEngineers.filter(eng => !isEngineerAssigned(slot.time, eng, 'skg')).map(eng =>
-                                `<option value="${eng}" ${scheduleData[slot.time].breaks[i] === eng ? 'selected' : ''}>${eng}</option>`
-                            ).join('')}
-                        </select>
-                    </td>`;
-                }
-                
-                // Out of OPS (2 slots)
-                for (let i = 0; i < 2; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;">
-                        <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'engineer')">
-                            <option value="">-</option>
-                            ${availableEngineers.map(eng =>
-                                `<option value="${eng}" ${scheduleData[slot.time].outOfOps[i].engineer === eng ? 'selected' : ''}>${eng}</option>`
-                            ).join('')}
-                        </select>
-                    </td>`;
-                    
-                    html += `<td style="padding: 4px; border: 1px solid #000;">
-                        <select class="reason-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'reason')">
-                            <option value="">Select Reason</option>
-                            ${outOfOpsReasons.map(reason =>
-                                `<option value="${reason}" ${scheduleData[slot.time].outOfOps[i].reason === reason ? 'selected' : ''}>${reason}</option>`
-                            ).join('')}
-                        </select>
-                    </td>`;
-                }
-                
                 row.innerHTML = html;
                 tbody.appendChild(row);
             });
@@ -476,10 +426,8 @@
             TIME_SLOTS.forEach((slot, timeIndex) => {
                 scheduleData[slot.time].skg = ['', '', '', '', '', ''];
                 scheduleData[slot.time].textables = ['', '', '', '', '', ''];
-                scheduleData[slot.time].outOfOps = [{ engineer: '', reason: '' }, { engineer: '', reason: '' }];
                 
-                const outOfOpsEngineers = getOutOfOpsEngineersForSlot(slot.time);
-                const availableForRotation = workingEngineers.filter(eng => !outOfOpsEngineers.includes(eng));
+                const availableForRotation = workingEngineers;
                 
                 const skgGroup = timeIndex % 2 === 0 ? 
                     availableForRotation.filter(eng => group1.includes(eng)) : 
@@ -493,14 +441,6 @@
             });
             
             updateDashboard();
-        }
-
-        function getOutOfOpsEngineersForSlot(time) {
-            const outOfOps = [];
-            scheduleData[time].outOfOps.forEach(item => {
-                if (item.engineer) outOfOps.push(item.engineer);
-            });
-            return outOfOps;
         }
 
         function updateLiveStatus() {
@@ -521,13 +461,7 @@
                 const data = scheduleData[currentTimeSlot];
                 const skgCount = data.skg.filter(eng => eng !== '').length;
                 const textablesCount = data.textables.filter(eng => eng !== '').length;
-                const outOfOpsCount = data.outOfOps.filter(item => item.engineer !== '').length;
                 
-                statusHTML += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">`;
-                statusHTML += `<div>`;
-                statusHTML += `<div style="color: #4CAF50; font-size: 16px; margin-bottom: 10px;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
-                statusHTML += `<div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div>`;
-                statusHTML += `<div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div>`;
                 // Count user inputs for current slot
                 const userBreaksCount = Object.values(userInputs || {}).filter(input => 
                     input.timeSlot === currentTimeSlot && input.type === 'break'
@@ -536,28 +470,22 @@
                     input.timeSlot === currentTimeSlot && input.type === 'meeting'
                 ).length;
                 
+                statusHTML += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">`;
+                statusHTML += `<div>`;
+                statusHTML += `<div style="color: #4CAF50; font-size: 16px; margin-bottom: 10px;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">☕ User Breaks: ${userBreaksCount} Engineers</div>`;
-                statusHTML += `<div style="margin-bottom: 8px;">📅 Admin + User Meetings: ${outOfOpsCount + userMeetingsCount} Engineers</div>`;
-                
-                if (outOfOpsCount > 0) {
-                    statusHTML += `<div style="margin-top: 10px; font-size: 14px; color: #FFB74D;">`;
-                    data.outOfOps.forEach(item => {
-                        if (item.engineer && item.reason) {
-                            statusHTML += `<div>• ${item.engineer} - ${item.reason}</div>`;
-                        }
-                    });
-                    statusHTML += `</div>`;
-                }
+                statusHTML += `<div style="margin-bottom: 8px;">📅 User Meetings: ${userMeetingsCount} Engineers</div>`;
                 statusHTML += `</div>`;
                 
                 statusHTML += `<div>`;
                 statusHTML += `<div style="color: #2196F3; font-size: 16px; margin-bottom: 10px;">👥 DASHBOARD STATS</div>`;
                 statusHTML += `<div style="font-size: 14px;">`;
                 statusHTML += `Total Active: ${skgCount + textablesCount} Engineers<br>`;
-                statusHTML += `Total Out of OPS: ${outOfOpsCount + userMeetingsCount + userBreaksCount} Engineers<br>`;
+                statusHTML += `Total Out of OPS: ${userMeetingsCount + userBreaksCount} Engineers<br>`;
                 statusHTML += `Dashboard Users: ${Object.keys(userInputs || {}).length} Inputs`;
                 statusHTML += `</div>`;
-                
                 statusHTML += `</div>`;
                 statusHTML += `</div>`;
             } else {
@@ -607,35 +535,18 @@
         }
 
         // Global functions
-        window.updateScheduleData = function(time, type, index, value, subType = null) {
-            if (subType) {
-                if (type === 'outOfOps') {
-                    const oldValue = scheduleData[time].outOfOps[index][subType];
-                    scheduleData[time].outOfOps[index][subType] = value;
-                    if (subType === 'engineer' && oldValue !== value) {
-                        autoPopulateSchedule();
-                        syncToFirebase();
-                        return;
-                    }
-                }
-            } else {
-                if (type === 'breaks' && value && isEngineerAssigned(time, value, 'skg')) {
-                    alert('Engineers cannot take breaks while assigned to SKG.');
-                    event.target.value = '';
-                    return;
-                }
-                if (type.includes('skg') && value && isEngineerAssigned(time, value, 'textables')) {
-                    alert('Engineers cannot be assigned to both SKG and Textables.');
-                    event.target.value = '';
-                    return;
-                }
-                if (type.includes('textables') && value && isEngineerAssigned(time, value, 'skg')) {
-                    alert('Engineers cannot be assigned to both SKG and Textables.');
-                    event.target.value = '';
-                    return;
-                }
-                scheduleData[time][type][index] = value;
+        window.updateScheduleData = function(time, type, index, value) {
+            if (type.includes('skg') && value && isEngineerAssigned(time, value, 'textables')) {
+                alert('Engineers cannot be assigned to both SKG and Textables.');
+                event.target.value = '';
+                return;
             }
+            if (type.includes('textables') && value && isEngineerAssigned(time, value, 'skg')) {
+                alert('Engineers cannot be assigned to both SKG and Textables.');
+                event.target.value = '';
+                return;
+            }
+            scheduleData[time][type][index] = value;
             updateLiveStatus();
             syncToFirebase();
         };
