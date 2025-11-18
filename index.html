@@ -495,16 +495,29 @@
                     !engineersOff.includes(eng) && !unavailableEngineers.includes(eng)
                 );
                 
-                const groupSize = Math.ceil(workingEngineers.length / 2);
-                const group1 = workingEngineers.slice(0, groupSize);
-                const group2 = workingEngineers.slice(groupSize);
+                // SKG always gets more engineers when odd number
+                const skgSize = Math.ceil(workingEngineers.length / 2);
+                const textablesSize = Math.floor(workingEngineers.length / 2);
+                
+                const group1 = workingEngineers.slice(0, skgSize);  // Larger group (SKG priority)
+                const group2 = workingEngineers.slice(skgSize);     // Smaller group
                 
                 const skgGroup = timeIndex % 2 === 0 ? group1 : group2;
                 const textablesGroup = timeIndex % 2 === 0 ? group2 : group1;
                 
+                // For odd time slots, ensure SKG gets the larger group
+                let finalSkgGroup, finalTextablesGroup;
+                if (timeIndex % 2 === 0) {
+                    finalSkgGroup = group1;      // SKG gets larger group
+                    finalTextablesGroup = group2; // Textables gets smaller group
+                } else {
+                    finalSkgGroup = group2;      // SKG gets larger group
+                    finalTextablesGroup = group1; // Textables gets smaller group
+                }
+                
                 // Assign SKG (ensure no conflicts)
                 let skgAssigned = [];
-                skgGroup.forEach((eng, i) => {
+                finalSkgGroup.forEach((eng, i) => {
                     if (i < 6 && !skgAssigned.includes(eng)) {
                         scheduleData[slot.time].skg[i] = eng;
                         skgAssigned.push(eng);
@@ -513,7 +526,7 @@
                 
                 // Assign Textables (ensure no conflicts with SKG)
                 let textablesAssigned = [];
-                textablesGroup.forEach((eng, i) => {
+                finalTextablesGroup.forEach((eng, i) => {
                     if (i < 6 && !skgAssigned.includes(eng) && !textablesAssigned.includes(eng)) {
                         scheduleData[slot.time].textables[i] = eng;
                         textablesAssigned.push(eng);
