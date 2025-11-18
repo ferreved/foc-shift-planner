@@ -5,13 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FOC Shift Planner Dashboard</title>
     <style>
-        body { margin: 0; padding: 0; background: #f5f5f5; }
+        body { margin: 0; padding: 0; background: #f5f5f5; font-family: Arial, sans-serif; }
         .time-indicator { background: #ffebee !important; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
         .engineer-select { width: 80px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
         .break-select { width: 60px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
         .reason-select { width: 120px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
         .count-display { font-weight: bold; text-align: center; background: #e3f2fd; padding: 4px; }
+        .status-online { color: #28a745; font-weight: bold; }
+        .status-offline { color: #dc3545; font-weight: bold; }
     </style>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -50,26 +52,19 @@
             database = firebase.database();
             scheduleRef = database.ref('schedule');
             firebaseInitialized = true;
-            console.log('Firebase initialized successfully');
         } catch (error) {
-            console.log('Firebase not configured - running in offline mode');
             firebaseInitialized = false;
         }
         
         // Real-time sync functions
         function syncToFirebase() {
             if (!firebaseInitialized) return;
-            
-            const data = {
-                currentTeam, availableEngineers, extraEngineers, engineersOff, 
-                scheduleData, shiftLead, stepUpLead, lastUpdated: Date.now()
-            };
+            const data = { currentTeam, availableEngineers, extraEngineers, engineersOff, scheduleData, shiftLead, stepUpLead, lastUpdated: Date.now() };
             scheduleRef.set(data).catch(err => console.log('Sync failed:', err));
         }
         
         function setupRealtimeSync() {
             if (!firebaseInitialized) return;
-            
             scheduleRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data && data.lastUpdated !== window.lastUpdate) {
@@ -87,40 +82,18 @@
         }
         
         function updateDisplayFromSync() {
-            if (document.getElementById('team-selector')) {
-                document.getElementById('team-selector').value = currentTeam;
-            }
-            if (document.getElementById('shift-lead-display')) {
-                document.getElementById('shift-lead-display').textContent = shiftLead;
-            }
-            if (document.getElementById('stepup-lead-display')) {
-                document.getElementById('stepup-lead-display').textContent = stepUpLead;
-            }
+            if (document.getElementById('team-selector')) document.getElementById('team-selector').value = currentTeam;
+            if (document.getElementById('shift-lead-display')) document.getElementById('shift-lead-display').textContent = shiftLead;
+            if (document.getElementById('stepup-lead-display')) document.getElementById('stepup-lead-display').textContent = stepUpLead;
             updateExtraEngineersDisplay();
             updateEngineersOffDisplay();
             updateScheduleTable();
-        }
-
-        function updateDisplay() {
-            // Update team selector
-            document.getElementById('team-selector').value = currentTeam;
-            
-            // Update shift leads
-            document.getElementById('shift-lead-display').textContent = shiftLead;
-            document.getElementById('stepup-lead-display').textContent = stepUpLead;
-            
-            // Update extra engineers and off lists
-            updateExtraEngineersList();
-            updateEngineersOffList();
-            
-            // Refresh schedule table
-            renderScheduleTable();
         }
         
         function initDashboard() {
             setupRealtimeSync();
             document.getElementById('app').innerHTML = `
-                <div style="font-family: Arial, sans-serif; margin: 20px;">
+                <div style="margin: 20px;">
                     <h1 style="color: #232F3E; text-align: center;">FOC Shift Planner Dashboard</h1>
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                         <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
@@ -130,6 +103,7 @@
                                 <option value="AB_PROJECT_A">Team A/B Project for A</option><option value="AB_PROJECT_B">Team A/B Project for B</option>
                             </select></div>
                             <button id="auto-populate-btn" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Auto Populate</button>
+                            <div id="sync-status" class="${firebaseInitialized ? 'status-online' : 'status-offline'}">${firebaseInitialized ? '🔥 Live Sync ON' : '⚠️ Offline Mode'}</div>
                         </div>
                         <div id="current-time" style="text-align: center; font-size: 18px; font-weight: bold; margin-top: 10px; color: #007bff;"></div>
                         <div style="margin-top: 15px; display: flex; gap: 20px; flex-wrap: wrap;">
@@ -184,22 +158,45 @@
                         <div id="live-status-content" style="font-size: 18px; line-height: 1.6;"></div>
                     </div>
                 </div>`;
-            attachEventListeners(); initializeScheduleData(); updateDashboard(); startTimeClock();
-            
-            // Show connection status
-            if (firebaseInitialized) {
-                console.log('🔥 Real-time sync enabled - changes will be visible to all users');
-            } else {
-                console.log('⚠️ Running in offline mode - set up Firebase for real-time sync');
-            }
+            attachEventListeners();
+            initializeScheduleData();
+            updateDashboard();
+            startTimeClock();
         }
 
         function attachEventListeners() {
-            document.getElementById('new-schedule-btn').addEventListener('click', () => { if (confirm('Are you sure you want to start a new schedule? All current data will be lost.')) { initializeScheduleData(); updateDashboard(); } });
-            document.getElementById('team-selector').addEventListener('change', (e) => { currentTeam = e.target.value; updateAvailableEngineers(); updateLeaderSelectors(); updateDashboard(); });
-            document.getElementById('shift-lead-selector').addEventListener('change', (e) => { shiftLead = e.target.value; document.getElementById('shift-lead-display').textContent = shiftLead; });
-            document.getElementById('stepup-lead-selector').addEventListener('change', (e) => { stepUpLead = e.target.value; document.getElementById('stepup-lead-display').textContent = stepUpLead; });
-            document.getElementById('auto-populate-btn').addEventListener('click', autoPopulateSchedule);
+            document.getElementById('new-schedule-btn').addEventListener('click', () => {
+                if (confirm('Are you sure you want to start a new schedule? All current data will be lost.')) {
+                    initializeScheduleData();
+                    updateDashboard();
+                    syncToFirebase();
+                }
+            });
+            
+            document.getElementById('team-selector').addEventListener('change', (e) => {
+                currentTeam = e.target.value;
+                updateAvailableEngineers();
+                updateLeaderSelectors();
+                updateDashboard();
+                syncToFirebase();
+            });
+            
+            document.getElementById('shift-lead-selector').addEventListener('change', (e) => {
+                shiftLead = e.target.value;
+                document.getElementById('shift-lead-display').textContent = shiftLead;
+                syncToFirebase();
+            });
+            
+            document.getElementById('stepup-lead-selector').addEventListener('change', (e) => {
+                stepUpLead = e.target.value;
+                document.getElementById('stepup-lead-display').textContent = stepUpLead;
+                syncToFirebase();
+            });
+            
+            document.getElementById('auto-populate-btn').addEventListener('click', () => {
+                autoPopulateSchedule();
+                syncToFirebase();
+            });
         }
 
         function updateAvailableEngineers() {
@@ -208,14 +205,17 @@
                 case 'B': availableEngineers = [...TEAMS.B, ...extraEngineers]; break;
                 default: availableEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers];
             }
-            updateExtraEngineerDropdown(); updateEngineerOffDropdown();
+            updateExtraEngineerDropdown();
+            updateEngineerOffDropdown();
         }
 
         function updateExtraEngineerDropdown() {
             const select = document.getElementById('extra-engineer-select');
             if (select) {
                 select.innerHTML = '<option value="">Select Engineer for Extra Hours</option>';
-                [...TEAMS.A, ...TEAMS.B].forEach(engineer => select.innerHTML += `<option value="${engineer}">${engineer}</option>`);
+                [...TEAMS.A, ...TEAMS.B].forEach(engineer => {
+                    select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
+                });
             }
         }
 
@@ -223,7 +223,9 @@
             const select = document.getElementById('engineer-off-select');
             if (select) {
                 select.innerHTML = '<option value="">Select Engineer Off</option>';
-                availableEngineers.forEach(engineer => select.innerHTML += `<option value="${engineer}">${engineer}</option>`);
+                availableEngineers.forEach(engineer => {
+                    select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
+                });
             }
         }
 
@@ -231,6 +233,7 @@
             const allEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers];
             const shiftLeadSelect = document.getElementById('shift-lead-selector');
             const stepupLeadSelect = document.getElementById('stepup-lead-selector');
+            
             if (shiftLeadSelect && stepupLeadSelect) {
                 shiftLeadSelect.innerHTML = '<option value="">Select Shift Lead</option>';
                 stepupLeadSelect.innerHTML = '<option value="">Select Step-up Lead</option>';
@@ -245,36 +248,89 @@
             scheduleData = {};
             TIME_SLOTS.forEach(slot => {
                 scheduleData[slot.time] = {
-                    skg: ['', '', '', '', '', ''], textables: ['', '', '', '', '', ''], breaks: ['', '', '', ''],
-                    outOfOps: [{ engineer: '', reason: '' }, { engineer: '', reason: '' }], skgDynamic: [], textablesDynamic: [], outOfOpsDynamic: []
+                    skg: ['', '', '', '', '', ''],
+                    textables: ['', '', '', '', '', ''],
+                    breaks: ['', '', '', ''],
+                    outOfOps: [{ engineer: '', reason: '' }, { engineer: '', reason: '' }]
                 };
             });
         }
 
-        function updateDashboard() { updateScheduleTable(); updateLeaderSelectors(); }
+        function updateDashboard() {
+            updateScheduleTable();
+            updateLeaderSelectors();
+        }
 
         function updateScheduleTable() {
             const tbody = document.getElementById('schedule-tbody');
             if (!tbody) return;
+            
             tbody.innerHTML = '';
             TIME_SLOTS.forEach(slot => {
                 const row = document.createElement('tr');
                 let html = `<td style="padding: 8px; border: 1px solid #000; font-weight: bold; text-align: center;">${slot.label}</td>`;
+                
+                // SKG columns (6)
                 for (let i = 0; i < 6; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;"><select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'skg', ${i}, this.value)"><option value="">-</option>${getAvailableEngineersForSlot(slot.time, 'skg', i).map(eng => `<option value="${eng}" ${scheduleData[slot.time].skg[i] === eng ? 'selected' : ''}>${eng}</option>`).join('')}</select></td>`;
+                    html += `<td style="padding: 4px; border: 1px solid #000;">
+                        <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'skg', ${i}, this.value)">
+                            <option value="">-</option>
+                            ${getAvailableEngineersForSlot(slot.time, 'skg', i).map(eng =>
+                                `<option value="${eng}" ${scheduleData[slot.time].skg[i] === eng ? 'selected' : ''}>${eng}</option>`
+                            ).join('')}
+                        </select>
+                    </td>`;
                 }
+                
+                // Textables columns (6)
                 for (let i = 0; i < 6; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;"><select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'textables', ${i}, this.value)"><option value="">-</option>${getAvailableEngineersForSlot(slot.time, 'textables', i).map(eng => `<option value="${eng}" ${scheduleData[slot.time].textables[i] === eng ? 'selected' : ''}>${eng}</option>`).join('')}</select></td>`;
+                    html += `<td style="padding: 4px; border: 1px solid #000;">
+                        <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'textables', ${i}, this.value)">
+                            <option value="">-</option>
+                            ${getAvailableEngineersForSlot(slot.time, 'textables', i).map(eng =>
+                                `<option value="${eng}" ${scheduleData[slot.time].textables[i] === eng ? 'selected' : ''}>${eng}</option>`
+                            ).join('')}
+                        </select>
+                    </td>`;
                 }
+                
+                // Break intervals (4)
                 for (let i = 0; i < 4; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;"><select class="break-select" onchange="updateScheduleData('${slot.time}', 'breaks', ${i}, this.value)"><option value="">-</option>${availableEngineers.filter(eng => !isEngineerAssigned(slot.time, eng, 'skg')).map(eng => `<option value="${eng}" ${scheduleData[slot.time].breaks[i] === eng ? 'selected' : ''}>${eng}</option>`).join('')}</select></td>`;
+                    html += `<td style="padding: 4px; border: 1px solid #000;">
+                        <select class="break-select" onchange="updateScheduleData('${slot.time}', 'breaks', ${i}, this.value)">
+                            <option value="">-</option>
+                            ${availableEngineers.filter(eng => !isEngineerAssigned(slot.time, eng, 'skg')).map(eng =>
+                                `<option value="${eng}" ${scheduleData[slot.time].breaks[i] === eng ? 'selected' : ''}>${eng}</option>`
+                            ).join('')}
+                        </select>
+                    </td>`;
                 }
+                
+                // Out of OPS (2 slots)
                 for (let i = 0; i < 2; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;"><select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'engineer')"><option value="">-</option>${availableEngineers.map(eng => `<option value="${eng}" ${scheduleData[slot.time].outOfOps[i].engineer === eng ? 'selected' : ''}>${eng}</option>`).join('')}</select></td>`;
-                    html += `<td style="padding: 4px; border: 1px solid #000;"><select class="reason-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'reason')"><option value="">Select Reason</option>${outOfOpsReasons.map(reason => `<option value="${reason}" ${scheduleData[slot.time].outOfOps[i].reason === reason ? 'selected' : ''}>${reason}</option>`).join('')}</select></td>`;
+                    html += `<td style="padding: 4px; border: 1px solid #000;">
+                        <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'engineer')">
+                            <option value="">-</option>
+                            ${availableEngineers.map(eng =>
+                                `<option value="${eng}" ${scheduleData[slot.time].outOfOps[i].engineer === eng ? 'selected' : ''}>${eng}</option>`
+                            ).join('')}
+                        </select>
+                    </td>`;
+                    
+                    html += `<td style="padding: 4px; border: 1px solid #000;">
+                        <select class="reason-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'reason')">
+                            <option value="">Select Reason</option>
+                            ${outOfOpsReasons.map(reason =>
+                                `<option value="${reason}" ${scheduleData[slot.time].outOfOps[i].reason === reason ? 'selected' : ''}>${reason}</option>`
+                            ).join('')}
+                        </select>
+                    </td>`;
                 }
-                row.innerHTML = html; tbody.appendChild(row);
+                
+                row.innerHTML = html;
+                tbody.appendChild(row);
             });
+            
             updateLiveStatus();
         }
 
@@ -303,23 +359,34 @@
             const groupSize = Math.ceil(workingEngineers.length / 2);
             const group1 = workingEngineers.slice(0, groupSize);
             const group2 = workingEngineers.slice(groupSize);
+            
             TIME_SLOTS.forEach((slot, timeIndex) => {
                 scheduleData[slot.time].skg = ['', '', '', '', '', ''];
                 scheduleData[slot.time].textables = ['', '', '', '', '', ''];
                 scheduleData[slot.time].outOfOps = [{ engineer: '', reason: '' }, { engineer: '', reason: '' }];
+                
                 const outOfOpsEngineers = getOutOfOpsEngineersForSlot(slot.time);
                 const availableForRotation = workingEngineers.filter(eng => !outOfOpsEngineers.includes(eng));
-                const skgGroup = timeIndex % 2 === 0 ? availableForRotation.filter(eng => group1.includes(eng)) : availableForRotation.filter(eng => group2.includes(eng));
-                const textablesGroup = timeIndex % 2 === 0 ? availableForRotation.filter(eng => group2.includes(eng)) : availableForRotation.filter(eng => group1.includes(eng));
+                
+                const skgGroup = timeIndex % 2 === 0 ? 
+                    availableForRotation.filter(eng => group1.includes(eng)) : 
+                    availableForRotation.filter(eng => group2.includes(eng));
+                const textablesGroup = timeIndex % 2 === 0 ? 
+                    availableForRotation.filter(eng => group2.includes(eng)) : 
+                    availableForRotation.filter(eng => group1.includes(eng));
+                
                 skgGroup.forEach((eng, i) => { if (i < 6) scheduleData[slot.time].skg[i] = eng; });
                 textablesGroup.forEach((eng, i) => { if (i < 6) scheduleData[slot.time].textables[i] = eng; });
             });
+            
             updateDashboard();
         }
 
         function getOutOfOpsEngineersForSlot(time) {
             const outOfOps = [];
-            scheduleData[time].outOfOps.forEach(item => { if (item.engineer) outOfOps.push(item.engineer); });
+            scheduleData[time].outOfOps.forEach(item => {
+                if (item.engineer) outOfOps.push(item.engineer);
+            });
             return outOfOps;
         }
 
@@ -327,106 +394,185 @@
             const now = new Date();
             const currentHour = now.getHours();
             let currentTimeSlot = '';
-            if (currentHour >= 7 && currentHour < 15) currentTimeSlot = `${currentHour}:00`;
+            
+            if (currentHour >= 7 && currentHour < 15) {
+                currentTimeSlot = `${currentHour}:00`;
+            }
+            
             const statusContent = document.getElementById('live-status-content');
             if (!statusContent) return;
+            
             let statusHTML = `<div style="text-align: center; font-size: 20px; margin-bottom: 15px; color: #FF9900;">FOC LIVE: TEAM ${currentTeam}</div>`;
+            
             if (currentTimeSlot && scheduleData[currentTimeSlot]) {
                 const data = scheduleData[currentTimeSlot];
                 const skgCount = data.skg.filter(eng => eng !== '').length;
                 const textablesCount = data.textables.filter(eng => eng !== '').length;
                 const outOfOpsCount = data.outOfOps.filter(item => item.engineer !== '').length;
-                statusHTML += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;"><div><div style="color: #4CAF50; font-size: 16px; margin-bottom: 10px;">📊 CURRENT SLOT: ${currentTimeSlot}</div><div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div><div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div><div style="margin-bottom: 8px;">⏸️ Out of OPS: ${outOfOpsCount} Engineers</div>`;
+                
+                statusHTML += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">`;
+                statusHTML += `<div>`;
+                statusHTML += `<div style="color: #4CAF50; font-size: 16px; margin-bottom: 10px;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">⏸️ Out of OPS: ${outOfOpsCount} Engineers</div>`;
+                
                 if (outOfOpsCount > 0) {
                     statusHTML += `<div style="margin-top: 10px; font-size: 14px; color: #FFB74D;">`;
-                    data.outOfOps.forEach(item => { if (item.engineer && item.reason) statusHTML += `<div>• ${item.engineer} - ${item.reason}</div>`; });
+                    data.outOfOps.forEach(item => {
+                        if (item.engineer && item.reason) {
+                            statusHTML += `<div>• ${item.engineer} - ${item.reason}</div>`;
+                        }
+                    });
                     statusHTML += `</div>`;
                 }
-                statusHTML += `</div><div><div style="color: #2196F3; font-size: 16px; margin-bottom: 10px;">👥 ACTIVE ENGINEERS</div>`;
+                statusHTML += `</div>`;
+                
+                statusHTML += `<div>`;
+                statusHTML += `<div style="color: #2196F3; font-size: 16px; margin-bottom: 10px;">👥 ACTIVE ENGINEERS</div>`;
+                
                 if (skgCount > 0) {
                     statusHTML += `<div style="margin-bottom: 8px; color: #4CAF50;">SKG Team:</div>`;
-                    data.skg.forEach(eng => { if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`; });
+                    data.skg.forEach(eng => {
+                        if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`;
+                    });
                 }
+                
                 if (textablesCount > 0) {
                     statusHTML += `<div style="margin-bottom: 8px; margin-top: 10px; color: #FF9800;">Textables Team:</div>`;
-                    data.textables.forEach(eng => { if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`; });
+                    data.textables.forEach(eng => {
+                        if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`;
+                    });
                 }
-                statusHTML += `</div></div>`;
+                statusHTML += `</div>`;
+                statusHTML += `</div>`;
             } else {
                 statusHTML += `<div style="text-align: center; color: #FFB74D; font-size: 16px;">Outside operational hours (7:00-15:00)</div>`;
             }
+            
             statusContent.innerHTML = statusHTML;
         }
 
         function startTimeClock() {
             function updateTime() {
                 const now = new Date();
-                const timeString = now.toLocaleTimeString('en-GB', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const timeString = now.toLocaleTimeString('en-GB', {
+                    hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+                });
+                
                 const timeElement = document.getElementById('current-time');
                 if (timeElement) timeElement.textContent = `Current Time: ${timeString}`;
+                
                 const currentHour = now.getHours();
                 let currentTimeSlot = '';
-                if (currentHour >= 7 && currentHour < 15) currentTimeSlot = `${currentHour}:00`;
-                document.querySelectorAll('.time-indicator').forEach(el => el.classList.remove('time-indicator'));
+                
+                if (currentHour >= 7 && currentHour < 15) {
+                    currentTimeSlot = `${currentHour}:00`;
+                }
+                
+                document.querySelectorAll('.time-indicator').forEach(el => {
+                    el.classList.remove('time-indicator');
+                });
+                
                 if (currentTimeSlot) {
                     const rows = document.querySelectorAll('#schedule-tbody tr');
                     rows.forEach(row => {
                         const timeCell = row.cells[0];
-                        if (timeCell && timeCell.textContent.trim() === currentTimeSlot) row.classList.add('time-indicator');
+                        if (timeCell && timeCell.textContent.trim() === currentTimeSlot) {
+                            row.classList.add('time-indicator');
+                        }
                     });
                 }
+                
                 if (now.getSeconds() === 0) updateLiveStatus();
             }
-            updateTime(); setInterval(updateTime, 1000); setInterval(updateLiveStatus, 60000);
+            
+            updateTime();
+            setInterval(updateTime, 1000);
+            setInterval(updateLiveStatus, 60000);
         }
 
+        // Global functions
         window.updateScheduleData = function(time, type, index, value, subType = null) {
             if (subType) {
                 if (type === 'outOfOps') {
                     const oldValue = scheduleData[time].outOfOps[index][subType];
                     scheduleData[time].outOfOps[index][subType] = value;
-                    if (subType === 'engineer' && oldValue !== value) { autoPopulateSchedule(); return; }
+                    if (subType === 'engineer' && oldValue !== value) {
+                        autoPopulateSchedule();
+                        syncToFirebase();
+                        return;
+                    }
                 }
             } else {
-                if (type === 'breaks' && value && isEngineerAssigned(time, value, 'skg')) { alert('Engineers cannot take breaks while assigned to SKG.'); event.target.value = ''; return; }
-                if (type.includes('skg') && value && isEngineerAssigned(time, value, 'textables')) { alert('Engineers cannot be assigned to both SKG and Textables.'); event.target.value = ''; return; }
-                if (type.includes('textables') && value && isEngineerAssigned(time, value, 'skg')) { alert('Engineers cannot be assigned to both SKG and Textables.'); event.target.value = ''; return; }
+                if (type === 'breaks' && value && isEngineerAssigned(time, value, 'skg')) {
+                    alert('Engineers cannot take breaks while assigned to SKG.');
+                    event.target.value = '';
+                    return;
+                }
+                if (type.includes('skg') && value && isEngineerAssigned(time, value, 'textables')) {
+                    alert('Engineers cannot be assigned to both SKG and Textables.');
+                    event.target.value = '';
+                    return;
+                }
+                if (type.includes('textables') && value && isEngineerAssigned(time, value, 'skg')) {
+                    alert('Engineers cannot be assigned to both SKG and Textables.');
+                    event.target.value = '';
+                    return;
+                }
                 scheduleData[time][type][index] = value;
             }
             updateLiveStatus();
+            syncToFirebase();
         };
 
         window.addExtraEngineer = function() {
             const select = document.getElementById('extra-engineer-select');
             const engineer = select.value;
             if (engineer && !extraEngineers.includes(engineer)) {
-                extraEngineers.push(engineer); updateAvailableEngineers(); updateExtraEngineersDisplay(); updateScheduleTable(); select.value = '';
+                extraEngineers.push(engineer);
+                updateAvailableEngineers();
+                updateExtraEngineersDisplay();
+                updateScheduleTable();
+                select.value = '';
+                syncToFirebase();
             }
         };
 
         window.removeExtraEngineer = function(engineer) {
             extraEngineers = extraEngineers.filter(eng => eng !== engineer);
-            updateAvailableEngineers(); updateExtraEngineersDisplay(); updateScheduleTable();
+            updateAvailableEngineers();
+            updateExtraEngineersDisplay();
+            updateScheduleTable();
+            syncToFirebase();
         };
 
         window.addEngineerOff = function() {
             const select = document.getElementById('engineer-off-select');
             const engineer = select.value;
             if (engineer && !engineersOff.includes(engineer)) {
-                engineersOff.push(engineer); updateEngineersOffDisplay(); updateScheduleTable(); select.value = '';
+                engineersOff.push(engineer);
+                updateEngineersOffDisplay();
+                updateScheduleTable();
+                select.value = '';
+                syncToFirebase();
             }
         };
 
         window.removeEngineerOff = function(engineer) {
             engineersOff = engineersOff.filter(eng => eng !== engineer);
-            updateEngineersOffDisplay(); updateScheduleTable();
+            updateEngineersOffDisplay();
+            updateScheduleTable();
+            syncToFirebase();
         };
 
         function updateExtraEngineersDisplay() {
             const container = document.getElementById('extra-engineers-list');
             if (container) {
                 container.innerHTML = extraEngineers.map(eng => 
-                    `<span style="margin: 2px; padding: 4px 8px; background: #e3f2fd; border-radius: 4px; display: inline-block;">${eng} <button onclick="removeExtraEngineer('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button></span>`
+                    `<span style="margin: 2px; padding: 4px 8px; background: #e3f2fd; border-radius: 4px; display: inline-block;">
+                        ${eng} <button onclick="removeExtraEngineer('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button>
+                    </span>`
                 ).join('');
             }
         }
@@ -435,661 +581,15 @@
             const container = document.getElementById('engineers-off-list');
             if (container) {
                 container.innerHTML = engineersOff.map(eng => 
-                    `<span style="margin: 2px; padding: 4px 8px; background: #ffebee; border-radius: 4px; display: inline-block;">${eng} <button onclick="removeEngineerOff('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button></span>`
+                    `<span style="margin: 2px; padding: 4px 8px; background: #ffebee; border-radius: 4px; display: inline-block;">
+                        ${eng} <button onclick="removeEngineerOff('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button>
+                    </span>`
                 ).join('');
             }
         }
 
+        // Initialize when page loads
         document.addEventListener('DOMContentLoaded', initDashboard);
     </script>
 </body>
 </html>
-                            <td colspan="6" style="padding: 4px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-size: 10px;">(Project, 1:1 meetings, Interviews or any huddle discussions)</td>
-                            <td colspan="6" style="padding: 4px; border: 1px solid #000; background: #f0f0f0;"></td>
-                            <td colspan="4" style="padding: 4px; border: 1px solid #000; background: #f0f0f0;"></td>
-                            <td colspan="4" style="padding: 4px; border: 1px solid #000; background: #f0f0f0;"></td>
-                        </tr>
-
-                        <!-- Column Headers -->
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; font-weight: bold;">Primary</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 2</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 3</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 4</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 5</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 6</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 2</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 3</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 4</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 5</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 6</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">0-15</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">15-30</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">30-45</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">45-60</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Reason 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 2</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Reason 2</td>
-                        </tr>
-
-                        <tbody id="schedule-tbody">
-                        </tbody>
-
-                        <!-- Project Time Footer -->
-                        <tr>
-                            <td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">15:00 to 16:00</td>
-                            <td colspan="21" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td>
-                        </tr>
-                    </table>
-                </div>
-
-                <!-- Live Status Board -->
-                <div id="status-board" style="background: #232F3E; color: white; padding: 20px; border-radius: 8px; margin-top: 20px; font-family: 'Courier New', monospace;">
-                    <h2 style="color: #FF9900; text-align: center; margin-bottom: 20px; font-size: 24px;">FOC LIVE STATUS</h2>
-                    <div id="live-status-content" style="font-size: 18px; line-height: 1.6;">
-                        <!-- Status content will be populated here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Modal for adding extra engineer -->
-            <div id="add-engineer-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; min-width: 300px;">
-                    <h3>Add Extra Engineer</h3>
-                    <input type="text" id="extra-engineer-name" placeholder="Engineer alias" style="width: 100%; padding: 8px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px;">
-                    <div style="text-align: right; margin-top: 15px;">
-                        <button id="cancel-add-engineer" style="background: #6c757d; color: white; padding: 8px 16px; border: none; border-radius: 4px; margin-right: 10px; cursor: pointer;">Cancel</button>
-                        <button id="confirm-add-engineer" style="background: #28a745; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Add</button>
-                    </div>
-                </div>
-            </div>
-
-            <style>
-                .time-indicator {
-                    background: #ffebee !important;
-                    animation: pulse 2s infinite;
-                }
-
-                @keyframes pulse {
-                    0% { opacity: 1; }
-                    50% { opacity: 0.7; }
-                    100% { opacity: 1; }
-                }
-
-                .engineer-select {
-                    width: 80px;
-                    padding: 2px;
-                    border: 1px solid #ccc;
-                    border-radius: 3px;
-                    font-size: 10px;
-                }
-
-                .break-select {
-                    width: 60px;
-                    padding: 2px;
-                    border: 1px solid #ccc;
-                    border-radius: 3px;
-                    font-size: 10px;
-                }
-
-                .reason-select {
-                    width: 120px;
-                    padding: 2px;
-                    border: 1px solid #ccc;
-                    border-radius: 3px;
-                    font-size: 10px;
-                }
-
-                .count-display {
-                    font-weight: bold;
-                    text-align: center;
-                    background: #e3f2fd;
-                    padding: 4px;
-                }
-            </style>
-        `;
-    }
-
-    function attachEventListeners() {
-        // New schedule button
-        document.getElementById('new-schedule-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to start a new schedule? All current data will be lost.')) {
-                initializeScheduleData();
-                updateDashboard();
-            }
-        });
-
-        // Team selector
-        document.getElementById('team-selector').addEventListener('change', (e) => {
-            currentTeam = e.target.value;
-            updateAvailableEngineers();
-            updateLeaderSelectors();
-            updateDashboard();
-        });
-
-        // Leader selectors
-        document.getElementById('shift-lead-selector').addEventListener('change', (e) => {
-            shiftLead = e.target.value;
-            document.getElementById('shift-lead-display').textContent = shiftLead;
-        });
-
-        document.getElementById('stepup-lead-selector').addEventListener('change', (e) => {
-            stepUpLead = e.target.value;
-            document.getElementById('stepup-lead-display').textContent = stepUpLead;
-        });
-
-        // Modal event listeners (if modal exists)
-        const cancelBtn = document.getElementById('cancel-add-engineer');
-        const confirmBtn = document.getElementById('confirm-add-engineer');
-        
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => {
-                document.getElementById('add-engineer-modal').style.display = 'none';
-                document.getElementById('extra-engineer-name').value = '';
-            });
-        }
-        
-        if (confirmBtn) {
-            confirmBtn.addEventListener('click', () => {
-                const engineerName = document.getElementById('extra-engineer-name').value.trim();
-                if (engineerName && !extraEngineers.includes(engineerName)) {
-                    extraEngineers.push(engineerName);
-                    updateAvailableEngineers();
-                    updateDashboard();
-                    document.getElementById('add-engineer-modal').style.display = 'none';
-                    document.getElementById('extra-engineer-name').value = '';
-                }
-            });
-        }
-
-        // Auto populate button
-        document.getElementById('auto-populate-btn').addEventListener('click', autoPopulateSchedule);
-    }
-
-    function updateAvailableEngineers() {
-        switch(currentTeam) {
-            case 'A':
-                availableEngineers = [...TEAMS.A, ...extraEngineers];
-                break;
-            case 'B':
-                availableEngineers = [...TEAMS.B, ...extraEngineers];
-                break;
-            case 'AB':
-                availableEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers];
-                break;
-            case 'AB_PROJECT_A':
-                availableEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers];
-                break;
-            case 'AB_PROJECT_B':
-                availableEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers];
-                break;
-        }
-        
-        // Update dropdowns
-        updateExtraEngineerDropdown();
-        updateEngineerOffDropdown();
-    }
-
-    function updateExtraEngineerDropdown() {
-        const select = document.getElementById('extra-engineer-select');
-        if (select) {
-            select.innerHTML = '<option value="">Select Engineer for Extra Hours</option>';
-            [...TEAMS.A, ...TEAMS.B].forEach(engineer => {
-                select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
-            });
-        }
-    }
-
-    function updateEngineerOffDropdown() {
-        const select = document.getElementById('engineer-off-select');
-        if (select) {
-            select.innerHTML = '<option value="">Select Engineer Off</option>';
-            availableEngineers.forEach(engineer => {
-                select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
-            });
-        }
-    }
-
-    function updateLeaderSelectors() {
-        const allEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers];
-        const shiftLeadSelect = document.getElementById('shift-lead-selector');
-        const stepupLeadSelect = document.getElementById('stepup-lead-selector');
-
-        if (shiftLeadSelect && stepupLeadSelect) {
-            // Clear and repopulate
-            shiftLeadSelect.innerHTML = '<option value="">Select Shift Lead</option>';
-            stepupLeadSelect.innerHTML = '<option value="">Select Step-up Lead</option>';
-
-            allEngineers.forEach(engineer => {
-                shiftLeadSelect.innerHTML += `<option value="${engineer}">${engineer}</option>`;
-                stepupLeadSelect.innerHTML += `<option value="${engineer}">${engineer}</option>`;
-            });
-        }
-    }
-
-    function initializeScheduleData() {
-        scheduleData = {};
-        TIME_SLOTS.forEach(slot => {
-            scheduleData[slot.time] = {
-                skg: ['', '', '', '', '', ''],
-                textables: ['', '', '', '', '', ''],
-                breaks: ['', '', '', ''],
-                outOfOps: [{ engineer: '', reason: '' }, { engineer: '', reason: '' }],
-                skgDynamic: [],
-                textablesDynamic: [],
-                outOfOpsDynamic: []
-            };
-        });
-    }
-
-    function updateDashboard() {
-        updateScheduleTable();
-        updateLeaderSelectors();
-    }
-
-    function updateScheduleTable() {
-        const tbody = document.getElementById('schedule-tbody');
-        if (!tbody) return;
-        
-        tbody.innerHTML = '';
-
-        TIME_SLOTS.forEach(slot => {
-            const row = document.createElement('tr');
-            let html = `<td style="padding: 8px; border: 1px solid #000; font-weight: bold; text-align: center;">${slot.label}</td>`;
-
-            // SKG columns (6 fixed)
-            for (let i = 0; i < 6; i++) {
-                html += `<td style="padding: 4px; border: 1px solid #000;">
-                    <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'skg', ${i}, this.value)">
-                        <option value="">-</option>
-                        ${getAvailableEngineersForSlot(slot.time, 'skg', i).map(eng =>
-                            `<option value="${eng}" ${scheduleData[slot.time].skg[i] === eng ? 'selected' : ''}>${eng}</option>`
-                        ).join('')}
-                    </select>
-                </td>`;
-            }
-
-            // Textables columns (6 fixed)
-            for (let i = 0; i < 6; i++) {
-                html += `<td style="padding: 4px; border: 1px solid #000;">
-                    <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'textables', ${i}, this.value)">
-                        <option value="">-</option>
-                        ${getAvailableEngineersForSlot(slot.time, 'textables', i).map(eng =>
-                            `<option value="${eng}" ${scheduleData[slot.time].textables[i] === eng ? 'selected' : ''}>${eng}</option>`
-                        ).join('')}
-                    </select>
-                </td>`;
-            }
-
-            // Break intervals (4 columns)
-            for (let i = 0; i < 4; i++) {
-                html += `<td style="padding: 4px; border: 1px solid #000;">
-                    <select class="break-select" onchange="updateScheduleData('${slot.time}', 'breaks', ${i}, this.value)">
-                        <option value="">-</option>
-                        ${availableEngineers.filter(eng => !isEngineerAssigned(slot.time, eng, 'skg')).map(eng =>
-                            `<option value="${eng}" ${scheduleData[slot.time].breaks[i] === eng ? 'selected' : ''}>${eng}</option>`
-                        ).join('')}
-                    </select>
-                </td>`;
-            }
-
-            // Out of OPS (2 fixed slots)
-            for (let i = 0; i < 2; i++) {
-                html += `<td style="padding: 4px; border: 1px solid #000;">
-                    <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'engineer')">
-                        <option value="">-</option>
-                        ${availableEngineers.map(eng =>
-                            `<option value="${eng}" ${scheduleData[slot.time].outOfOps[i].engineer === eng ? 'selected' : ''}>${eng}</option>`
-                        ).join('')}
-                    </select>
-                </td>`;
-
-                html += `<td style="padding: 4px; border: 1px solid #000;">
-                    <select class="reason-select" onchange="updateScheduleData('${slot.time}', 'outOfOps', ${i}, this.value, 'reason')">
-                        <option value="">Select Reason</option>
-                        ${outOfOpsReasons.map(reason =>
-                            `<option value="${reason}" ${scheduleData[slot.time].outOfOps[i].reason === reason ? 'selected' : ''}>${reason}</option>`
-                        ).join('')}
-                    </select>
-                </td>`;
-            }
-
-            row.innerHTML = html;
-            tbody.appendChild(row);
-        });
-
-        updateAllCounts();
-        updateLiveStatus();
-    }
-
-    // Helper functions
-    function getAvailableEngineersForSlot(time, type, index) {
-        const currentValue = type.includes('Dynamic') ? 
-            scheduleData[time][type][index] : 
-            scheduleData[time][type][index];
-        
-        return availableEngineers.filter(eng => {
-            if (eng === currentValue) return true;
-            if (engineersOff.includes(eng)) return false;
-            
-            const assignedToSkg = isEngineerAssigned(time, eng, 'skg');
-            const assignedToTextables = isEngineerAssigned(time, eng, 'textables');
-            
-            if (type.includes('skg') && assignedToTextables) return false;
-            if (type.includes('textables') && assignedToSkg) return false;
-            
-            return true;
-        });
-    }
-
-    function isEngineerAssigned(time, engineer, category) {
-        const data = scheduleData[time];
-        if (category === 'skg') {
-            return data.skg.includes(engineer) || data.skgDynamic.includes(engineer);
-        }
-        if (category === 'textables') {
-            return data.textables.includes(engineer) || data.textablesDynamic.includes(engineer);
-        }
-        return false;
-    }
-
-    // Global functions
-    window.updateScheduleData = function(time, type, index, value, subType = null) {
-        if (subType) {
-            if (type === 'outOfOps') {
-                const oldValue = scheduleData[time].outOfOps[index][subType];
-                scheduleData[time].outOfOps[index][subType] = value;
-                
-                // If engineer is being added/removed from out of ops, update schedule
-                if (subType === 'engineer' && oldValue !== value) {
-                    autoPopulateSchedule();
-        syncToFirebase();
-                    return;
-                }
-            } else if (type === 'outOfOpsDynamic') {
-                scheduleData[time].outOfOpsDynamic[index][subType] = value;
-            }
-        } else {
-            if (type === 'breaks' && value && isEngineerAssigned(time, value, 'skg')) {
-                alert('Engineers cannot take breaks while assigned to SKG.');
-                event.target.value = '';
-                return;
-            }
-
-            if (type.includes('skg') && value && isEngineerAssigned(time, value, 'textables')) {
-                alert('Engineers cannot be assigned to both SKG and Textables.');
-                event.target.value = '';
-                return;
-            }
-            if (type.includes('textables') && value && isEngineerAssigned(time, value, 'skg')) {
-                alert('Engineers cannot be assigned to both SKG and Textables.');
-                event.target.value = '';
-                return;
-            }
-
-            scheduleData[time][type][index] = value;
-        }
-        updateAllCounts();
-        updateLiveStatus();
-        syncToFirebase();
-    };
-
-
-
-    window.addExtraEngineer = function() {
-        const select = document.getElementById('extra-engineer-select');
-        const engineer = select.value;
-        if (engineer && !extraEngineers.includes(engineer)) {
-            extraEngineers.push(engineer);
-            updateAvailableEngineers();
-            updateExtraEngineersDisplay();
-            updateScheduleTable();
-            select.value = '';
-            syncToFirebase();
-        }
-    };
-
-    window.removeExtraEngineer = function(engineer) {
-        extraEngineers = extraEngineers.filter(eng => eng !== engineer);
-        updateAvailableEngineers();
-        updateExtraEngineersDisplay();
-        updateScheduleTable();
-        syncToFirebase();
-    };
-
-    window.addEngineerOff = function() {
-        const select = document.getElementById('engineer-off-select');
-        const engineer = select.value;
-        if (engineer && !engineersOff.includes(engineer)) {
-            engineersOff.push(engineer);
-            updateEngineersOffDisplay();
-            updateScheduleTable();
-            select.value = '';
-        }
-    };
-
-    window.removeEngineerOff = function(engineer) {
-        engineersOff = engineersOff.filter(eng => eng !== engineer);
-        updateEngineersOffDisplay();
-        updateScheduleTable();
-    };
-
-    function updateExtraEngineersDisplay() {
-        const container = document.getElementById('extra-engineers-list');
-        if (container) {
-            container.innerHTML = extraEngineers.map(eng => 
-                `<span style="margin: 2px; padding: 4px 8px; background: #e3f2fd; border-radius: 4px; display: inline-block;">
-                    ${eng} <button onclick="removeExtraEngineer('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button>
-                </span>`
-            ).join('');
-        }
-    }
-
-    function updateEngineersOffDisplay() {
-        const container = document.getElementById('engineers-off-list');
-        if (container) {
-            container.innerHTML = engineersOff.map(eng => 
-                `<span style="margin: 2px; padding: 4px 8px; background: #ffebee; border-radius: 4px; display: inline-block;">
-                    ${eng} <button onclick="removeEngineerOff('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button>
-                </span>`
-            ).join('');
-        }
-    }
-
-    function updateAllCounts() {
-        TIME_SLOTS.forEach(slot => {
-            const skgCount = scheduleData[slot.time].skg.filter(eng => eng !== '').length;
-            const textablesCount = scheduleData[slot.time].textables.filter(eng => eng !== '').length;
-
-            const skgCountEl = document.getElementById(`skg-count-${slot.time}`);
-            const textablesCountEl = document.getElementById(`textables-count-${slot.time}`);
-
-            if (skgCountEl) skgCountEl.textContent = skgCount;
-            if (textablesCountEl) textablesCountEl.textContent = textablesCount;
-        });
-    }
-
-    function autoPopulateSchedule() {
-        const workingEngineers = availableEngineers.filter(eng => 
-            !engineersOff.includes(eng)
-        );
-        
-        // Create rotation groups
-        const groupSize = Math.ceil(workingEngineers.length / 2);
-        const group1 = workingEngineers.slice(0, groupSize);
-        const group2 = workingEngineers.slice(groupSize);
-
-        TIME_SLOTS.forEach((slot, timeIndex) => {
-            // Clear existing data
-            scheduleData[slot.time].skg = ['', '', '', '', '', ''];
-            scheduleData[slot.time].textables = ['', '', '', '', '', ''];
-            scheduleData[slot.time].outOfOps = [{ engineer: '', reason: '' }, { engineer: '', reason: '' }];
-            
-            // Remove engineers who are out of ops from rotation
-            const outOfOpsEngineers = getOutOfOpsEngineersForSlot(slot.time);
-            const availableForRotation = workingEngineers.filter(eng => !outOfOpsEngineers.includes(eng));
-            
-            // Determine which group does SKG and which does Textables (hourly rotation)
-            const skgGroup = timeIndex % 2 === 0 ? 
-                availableForRotation.filter(eng => group1.includes(eng)) : 
-                availableForRotation.filter(eng => group2.includes(eng));
-            const textablesGroup = timeIndex % 2 === 0 ? 
-                availableForRotation.filter(eng => group2.includes(eng)) : 
-                availableForRotation.filter(eng => group1.includes(eng));
-            
-            // Assign SKG engineers (up to 6)
-            skgGroup.forEach((eng, i) => {
-                if (i < 6) {
-                    scheduleData[slot.time].skg[i] = eng;
-                }
-            });
-            
-            // Assign Textables engineers (up to 6)
-            textablesGroup.forEach((eng, i) => {
-                if (i < 6) {
-                    scheduleData[slot.time].textables[i] = eng;
-                }
-            });
-        });
-
-        updateDashboard();
-    }
-
-    function getOutOfOpsEngineersForSlot(time) {
-        const outOfOps = [];
-        scheduleData[time].outOfOps.forEach(item => {
-            if (item.engineer) outOfOps.push(item.engineer);
-        });
-        scheduleData[time].outOfOpsDynamic.forEach(item => {
-            if (item.engineer) outOfOps.push(item.engineer);
-        });
-        return outOfOps;
-    }
-
-    function updateLiveStatus() {
-        const now = new Date();
-        const currentHour = now.getHours();
-        let currentTimeSlot = '';
-        
-        if (currentHour >= 7 && currentHour < 15) {
-            currentTimeSlot = `${currentHour}:00`;
-        }
-        
-        const statusContent = document.getElementById('live-status-content');
-        if (!statusContent) return;
-        
-        let statusHTML = `<div style="text-align: center; font-size: 20px; margin-bottom: 15px; color: #FF9900;">FOC LIVE: TEAM ${currentTeam}</div>`;
-        
-        if (currentTimeSlot && scheduleData[currentTimeSlot]) {
-            const data = scheduleData[currentTimeSlot];
-            
-            // Count active engineers
-            const skgCount = data.skg.filter(eng => eng !== '').length;
-            const textablesCount = data.textables.filter(eng => eng !== '').length;
-            const outOfOpsCount = data.outOfOps.filter(item => item.engineer !== '').length;
-            
-            statusHTML += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">`;
-            
-            // Left column - Current assignments
-            statusHTML += `<div>`;
-            statusHTML += `<div style="color: #4CAF50; font-size: 16px; margin-bottom: 10px;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
-            statusHTML += `<div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div>`;
-            statusHTML += `<div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div>`;
-            statusHTML += `<div style="margin-bottom: 8px;">⏸️ Out of OPS: ${outOfOpsCount} Engineers</div>`;
-            
-            if (outOfOpsCount > 0) {
-                statusHTML += `<div style="margin-top: 10px; font-size: 14px; color: #FFB74D;">`;
-                data.outOfOps.forEach(item => {
-                    if (item.engineer && item.reason) {
-                        statusHTML += `<div>• ${item.engineer} - ${item.reason}</div>`;
-                    }
-                });
-                statusHTML += `</div>`;
-            }
-            statusHTML += `</div>`;
-            
-            // Right column - Active engineers
-            statusHTML += `<div>`;
-            statusHTML += `<div style="color: #2196F3; font-size: 16px; margin-bottom: 10px;">👥 ACTIVE ENGINEERS</div>`;
-            
-            if (skgCount > 0) {
-                statusHTML += `<div style="margin-bottom: 8px; color: #4CAF50;">SKG Team:</div>`;
-                data.skg.forEach(eng => {
-                    if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`;
-                });
-            }
-            
-            if (textablesCount > 0) {
-                statusHTML += `<div style="margin-bottom: 8px; margin-top: 10px; color: #FF9800;">Textables Team:</div>`;
-                data.textables.forEach(eng => {
-                    if (eng) statusHTML += `<div style="margin-left: 15px; font-size: 14px;">• ${eng}</div>`;
-                });
-            }
-            statusHTML += `</div>`;
-            statusHTML += `</div>`;
-        } else {
-            statusHTML += `<div style="text-align: center; color: #FFB74D; font-size: 16px;">Outside operational hours (7:00-15:00)</div>`;
-        }
-        
-        statusContent.innerHTML = statusHTML;
-    }
-
-    function startTimeClock() {
-        function updateTime() {
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('en-GB', {
-                hour12: false,
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit'
-            });
-
-            const timeElement = document.getElementById('current-time');
-            if (timeElement) {
-                timeElement.textContent = `Current Time: ${timeString}`;
-            }
-
-            const currentHour = now.getHours();
-            let currentTimeSlot = '';
-
-            if (currentHour >= 7 && currentHour < 15) {
-                currentTimeSlot = currentHour < 10 ? `${currentHour}:00` : `${currentHour}:00`;
-            }
-
-            document.querySelectorAll('.time-indicator').forEach(el => {
-                el.classList.remove('time-indicator');
-            });
-
-            if (currentTimeSlot) {
-                const rows = document.querySelectorAll('#schedule-tbody tr');
-                rows.forEach(row => {
-                    const timeCell = row.cells[0];
-                    if (timeCell && timeCell.textContent.trim() === currentTimeSlot) {
-                        row.classList.add('time-indicator');
-                    }
-                });
-            }
-            
-            // Update live status every minute
-            if (now.getSeconds() === 0) {
-                updateLiveStatus();
-            }
-        }
-
-        updateTime();
-        setInterval(updateTime, 1000);
-        
-        // Also update live status every minute
-        setInterval(updateLiveStatus, 60000);
-    }
-
-    // Initialize when page loads
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', waitForXwikiContent);
-    } else {
-        waitForXwikiContent();
-    }
-})();
