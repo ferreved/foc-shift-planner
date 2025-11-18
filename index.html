@@ -171,6 +171,7 @@
                     <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                         <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
                             <button id="new-schedule-btn" style="background: #ff4444; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">New Schedule</button>
+                            <button id="new-day-btn" style="background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">🌅 Start New Day</button>
                             <div><label>Team: </label><select id="team-selector" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
                                 <option value="A">Team A</option><option value="B">Team B</option><option value="AB">Team A/B</option>
                                 <option value="AB_PROJECT_A">Team A/B Project for A</option><option value="AB_PROJECT_B">Team A/B Project for B</option>
@@ -284,6 +285,12 @@
                 }
             });
             
+            document.getElementById('new-day-btn').addEventListener('click', () => {
+                if (confirm('Are you sure you want to start a new day? This will reset ALL data including breaks and meetings from dashboard.')) {
+                    startNewDay();
+                }
+            });
+            
             document.getElementById('team-selector').addEventListener('change', (e) => {
                 currentTeam = e.target.value;
                 updateAvailableEngineers();
@@ -357,12 +364,49 @@
 
         function initializeScheduleData() {
             scheduleData = {};
+            shiftLead = '';
+            stepUpLead = '';
             TIME_SLOTS.forEach(slot => {
                 scheduleData[slot.time] = {
                     skg: ['', '', '', '', '', ''],
                     textables: ['', '', '', '', '', '']
                 };
             });
+            // Clear shift lead displays
+            if (document.getElementById('shift-lead-display')) document.getElementById('shift-lead-display').textContent = '';
+            if (document.getElementById('stepup-lead-display')) document.getElementById('stepup-lead-display').textContent = '';
+            if (document.getElementById('shift-lead-selector')) document.getElementById('shift-lead-selector').value = '';
+            if (document.getElementById('stepup-lead-selector')) document.getElementById('stepup-lead-selector').value = '';
+        }
+        
+        function startNewDay() {
+            // Reset all schedule data
+            initializeScheduleData();
+            
+            // Reset team settings
+            currentTeam = 'A';
+            availableEngineers = [...TEAMS.A];
+            extraEngineers = [];
+            engineersOff = [];
+            
+            // Clear user inputs (breaks and meetings from dashboard)
+            userInputs = {};
+            
+            // Update displays
+            if (document.getElementById('team-selector')) document.getElementById('team-selector').value = 'A';
+            updateExtraEngineersDisplay();
+            updateEngineersOffDisplay();
+            updateDashboard();
+            
+            // Clear user inputs in Firebase
+            if (firebaseInitialized) {
+                userInputsRef.remove().catch(err => console.log('Clear user inputs failed:', err));
+            }
+            
+            // Sync everything to Firebase
+            syncToFirebase();
+            
+            alert('New day started! All data has been reset.');
         }
 
         function updateDashboard() {
@@ -432,29 +476,53 @@
         }
 
         function autoPopulateSchedule() {
-            const workingEngineers = availableEngineers.filter(eng => !engineersOff.includes(eng));
-            const groupSize = Math.ceil(workingEngineers.length / 2);
-            const group1 = workingEngineers.slice(0, groupSize);
-            const group2 = workingEngineers.slice(groupSize);
-            
             TIME_SLOTS.forEach((slot, timeIndex) => {
                 scheduleData[slot.time].skg = ['', '', '', '', '', ''];
                 scheduleData[slot.time].textables = ['', '', '', '', '', ''];
                 
-                const availableForRotation = workingEngineers;
+                // Get engineers not on break/meeting for this time slot
+                const unavailableEngineers = getUnavailableEngineers(slot.time);
+                const workingEngineers = availableEngineers.filter(eng => 
+                    !engineersOff.includes(eng) && !unavailableEngineers.includes(eng)
+                );
                 
-                const skgGroup = timeIndex % 2 === 0 ? 
-                    availableForRotation.filter(eng => group1.includes(eng)) : 
-                    availableForRotation.filter(eng => group2.includes(eng));
-                const textablesGroup = timeIndex % 2 === 0 ? 
-                    availableForRotation.filter(eng => group2.includes(eng)) : 
-                    availableForRotation.filter(eng => group1.includes(eng));
+                const groupSize = Math.ceil(workingEngineers.length / 2);
+                const group1 = workingEngineers.slice(0, groupSize);
+                const group2 = workingEngineers.slice(groupSize);
                 
-                skgGroup.forEach((eng, i) => { if (i < 6) scheduleData[slot.time].skg[i] = eng; });
-                textablesGroup.forEach((eng, i) => { if (i < 6) scheduleData[slot.time].textables[i] = eng; });
+                const skgGroup = timeIndex % 2 === 0 ? group1 : group2;
+                const textablesGroup = timeIndex % 2 === 0 ? group2 : group1;
+                
+                // Assign SKG (ensure no conflicts)
+                let skgAssigned = [];
+                skgGroup.forEach((eng, i) => {
+                    if (i < 6 && !skgAssigned.includes(eng)) {
+                        scheduleData[slot.time].skg[i] = eng;
+                        skgAssigned.push(eng);
+                    }
+                });
+                
+                // Assign Textables (ensure no conflicts with SKG)
+                let textablesAssigned = [];
+                textablesGroup.forEach((eng, i) => {
+                    if (i < 6 && !skgAssigned.includes(eng) && !textablesAssigned.includes(eng)) {
+                        scheduleData[slot.time].textables[i] = eng;
+                        textablesAssigned.push(eng);
+                    }
+                });
             });
             
             updateDashboard();
+        }
+        
+        function getUnavailableEngineers(timeSlot) {
+            const unavailable = [];
+            Object.values(userInputs || {}).forEach(input => {
+                if (input.timeSlot === timeSlot && (input.type === 'break' || input.type === 'meeting')) {
+                    unavailable.push(input.alias);
+                }
+            });
+            return unavailable;
         }
 
         function updateLiveStatus() {
@@ -470,6 +538,12 @@
             if (!statusContent) return;
             
             let statusHTML = `<div style="text-align: center; font-size: 20px; margin-bottom: 15px; color: #FF9900;">FOC ADMIN LIVE: TEAM ${currentTeam}</div>`;
+            
+            // Add shift lead and step-up lead info
+            statusHTML += `<div style="text-align: center; margin-bottom: 15px;">`;
+            statusHTML += `<div style="color: #FFD700; font-size: 14px;">Shift Lead: ${shiftLead || 'Not Set'}</div>`;
+            statusHTML += `<div style="color: #FFD700; font-size: 14px;">Step-up Lead: ${stepUpLead || 'Not Set'}</div>`;
+            statusHTML += `</div>`;
             
             if (currentTimeSlot && scheduleData[currentTimeSlot]) {
                 const data = scheduleData[currentTimeSlot];
