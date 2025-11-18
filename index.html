@@ -13,6 +13,9 @@
         .reason-select { width: 120px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
         .count-display { font-weight: bold; text-align: center; background: #e3f2fd; padding: 4px; }
     </style>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
 </head>
 <body>
     <div id="app"></div>
@@ -29,8 +32,93 @@
         const outOfOpsReasons = ['1:1 Meeting Long', '1:1 Meeting Short', 'Interview', 'Interview Shadow', 'Meeting', 'Training', 'Project', 'Other'];
         
         let currentTeam = 'A', availableEngineers = [...TEAMS.A], extraEngineers = [], engineersOff = [], scheduleData = {}, shiftLead = '', stepUpLead = '';
+        
+        // Firebase Configuration - REPLACE WITH YOUR ACTUAL CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            authDomain: "foc-dashboard.firebaseapp.com",
+            databaseURL: "https://foc-dashboard-default-rtdb.firebaseio.com/",
+            projectId: "foc-dashboard"
+        };
+        
+        let firebaseInitialized = false;
+        let database, scheduleRef;
+        
+        // Initialize Firebase
+        try {
+            firebase.initializeApp(firebaseConfig);
+            database = firebase.database();
+            scheduleRef = database.ref('schedule');
+            firebaseInitialized = true;
+            console.log('Firebase initialized successfully');
+        } catch (error) {
+            console.log('Firebase not configured - running in offline mode');
+            firebaseInitialized = false;
+        }
+        
+        // Real-time sync functions
+        function syncToFirebase() {
+            if (!firebaseInitialized) return;
+            
+            const data = {
+                currentTeam, availableEngineers, extraEngineers, engineersOff, 
+                scheduleData, shiftLead, stepUpLead, lastUpdated: Date.now()
+            };
+            scheduleRef.set(data).catch(err => console.log('Sync failed:', err));
+        }
+        
+        function setupRealtimeSync() {
+            if (!firebaseInitialized) return;
+            
+            scheduleRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.lastUpdated !== window.lastUpdate) {
+                    currentTeam = data.currentTeam || 'A';
+                    availableEngineers = data.availableEngineers || [...TEAMS.A];
+                    extraEngineers = data.extraEngineers || [];
+                    engineersOff = data.engineersOff || [];
+                    scheduleData = data.scheduleData || {};
+                    shiftLead = data.shiftLead || '';
+                    stepUpLead = data.stepUpLead || '';
+                    window.lastUpdate = data.lastUpdated;
+                    updateDisplayFromSync();
+                }
+            });
+        }
+        
+        function updateDisplayFromSync() {
+            if (document.getElementById('team-selector')) {
+                document.getElementById('team-selector').value = currentTeam;
+            }
+            if (document.getElementById('shift-lead-display')) {
+                document.getElementById('shift-lead-display').textContent = shiftLead;
+            }
+            if (document.getElementById('stepup-lead-display')) {
+                document.getElementById('stepup-lead-display').textContent = stepUpLead;
+            }
+            updateExtraEngineersDisplay();
+            updateEngineersOffDisplay();
+            updateScheduleTable();
+        }
 
+        function updateDisplay() {
+            // Update team selector
+            document.getElementById('team-selector').value = currentTeam;
+            
+            // Update shift leads
+            document.getElementById('shift-lead-display').textContent = shiftLead;
+            document.getElementById('stepup-lead-display').textContent = stepUpLead;
+            
+            // Update extra engineers and off lists
+            updateExtraEngineersList();
+            updateEngineersOffList();
+            
+            // Refresh schedule table
+            renderScheduleTable();
+        }
+        
         function initDashboard() {
+            setupRealtimeSync();
             document.getElementById('app').innerHTML = `
                 <div style="font-family: Arial, sans-serif; margin: 20px;">
                     <h1 style="color: #232F3E; text-align: center;">FOC Shift Planner Dashboard</h1>
@@ -97,6 +185,13 @@
                     </div>
                 </div>`;
             attachEventListeners(); initializeScheduleData(); updateDashboard(); startTimeClock();
+            
+            // Show connection status
+            if (firebaseInitialized) {
+                console.log('🔥 Real-time sync enabled - changes will be visible to all users');
+            } else {
+                console.log('⚠️ Running in offline mode - set up Firebase for real-time sync');
+            }
         }
 
         function attachEventListeners() {
@@ -711,6 +806,7 @@
                 // If engineer is being added/removed from out of ops, update schedule
                 if (subType === 'engineer' && oldValue !== value) {
                     autoPopulateSchedule();
+        syncToFirebase();
                     return;
                 }
             } else if (type === 'outOfOpsDynamic') {
@@ -738,6 +834,7 @@
         }
         updateAllCounts();
         updateLiveStatus();
+        syncToFirebase();
     };
 
 
@@ -751,6 +848,7 @@
             updateExtraEngineersDisplay();
             updateScheduleTable();
             select.value = '';
+            syncToFirebase();
         }
     };
 
@@ -759,6 +857,7 @@
         updateAvailableEngineers();
         updateExtraEngineersDisplay();
         updateScheduleTable();
+        syncToFirebase();
     };
 
     window.addEngineerOff = function() {
