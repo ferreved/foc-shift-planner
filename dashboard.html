@@ -277,6 +277,12 @@
                 const isCurrentTime = slot.time === currentTimeSlot;
                 const data = scheduleData[slot.time] || { skg: [], textables: [], breaks: [], outOfOps: [] };
                 
+                // Ensure arrays exist
+                if (!data.skg) data.skg = [];
+                if (!data.textables) data.textables = [];
+                if (!data.breaks) data.breaks = [];
+                if (!data.outOfOps) data.outOfOps = [];
+                
                 // Get user inputs for this time slot
                 const userBreaks = Object.values(userInputs || {}).filter(input => 
                     input.timeSlot === slot.time && input.type === 'break'
@@ -294,7 +300,7 @@
                         <div class="team-section">
                             <strong style="color: #4CAF50;">🔍 SKG Team:</strong>
                             <div class="engineer-list">
-                                ${data.skg.filter(eng => eng).map(eng => {
+                                ${(data.skg || []).filter(eng => eng).map(eng => {
                                     const userBreak = userBreaks.find(b => b.alias === eng);
                                     const userMeeting = userMeetings.find(m => m.alias === eng);
                                     let icon = '';
@@ -311,7 +317,7 @@
                         <div class="team-section">
                             <strong style="color: #FF9800;">📝 Textables Team:</strong>
                             <div class="engineer-list">
-                                ${data.textables.filter(eng => eng).map(eng => {
+                                ${(data.textables || []).filter(eng => eng).map(eng => {
                                     const userBreak = userBreaks.find(b => b.alias === eng);
                                     const userMeeting = userMeetings.find(m => m.alias === eng);
                                     let icon = '';
@@ -325,18 +331,18 @@
                         <div class="team-section">
                             <strong style="color: #2196F3;">☕ Breaks:</strong>
                             <div class="engineer-list">
-                                ${data.breaks.filter(eng => eng).map(eng => `<span class="break-tag">${eng}</span>`).join('')}
+                                ${(data.breaks || []).filter(eng => eng).map(eng => `<span class="break-tag">${eng}</span>`).join('')}
                                 ${userBreaks.map(brk => `<span class="break-tag">${brk.alias} (${brk.duration})</span>`).join('')}
-                                ${(data.breaks.filter(eng => eng).length === 0 && userBreaks.length === 0) ? '<span style="color: #999;">No breaks</span>' : ''}
+                                ${((data.breaks || []).filter(eng => eng).length === 0 && userBreaks.length === 0) ? '<span style="color: #999;">No breaks</span>' : ''}
                             </div>
                         </div>
                         
                         <div class="team-section">
                             <strong style="color: #9C27B0;">📅 Meetings:</strong>
                             <div class="engineer-list">
-                                ${data.outOfOps.filter(item => item.engineer).map(item => `<span class="meeting-tag">${item.engineer} - ${item.reason}</span>`).join('')}
+                                ${(data.outOfOps || []).filter(item => item && item.engineer).map(item => `<span class="meeting-tag">${item.engineer} - ${item.reason}</span>`).join('')}
                                 ${userMeetings.map(mtg => `<span class="meeting-tag">${mtg.alias} - ${mtg.reason} (${mtg.duration})</span>`).join('')}
-                                ${(data.outOfOps.filter(item => item.engineer).length === 0 && userMeetings.length === 0) ? '<span style="color: #999;">No meetings</span>' : ''}
+                                ${((data.outOfOps || []).filter(item => item && item.engineer).length === 0 && userMeetings.length === 0) ? '<span style="color: #999;">No meetings</span>' : ''}
                             </div>
                         </div>
                     </div>`;
