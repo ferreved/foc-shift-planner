@@ -35,12 +35,15 @@
         
         let currentTeam = 'A', availableEngineers = [...TEAMS.A], extraEngineers = [], engineersOff = [], scheduleData = {}, shiftLead = '', stepUpLead = '';
         
-        // Firebase Configuration - REPLACE WITH YOUR ACTUAL CONFIG
+        // Firebase Configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyBXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+            apiKey: "AIzaSyDIF_gb3swfMlXFa4ZY4ZsoAZSwaqmiwm4",
             authDomain: "foc-dashboard.firebaseapp.com",
-            databaseURL: "https://foc-dashboard-default-rtdb.firebaseio.com/",
-            projectId: "foc-dashboard"
+            databaseURL: "https://foc-dashboard-default-rtdb.firebaseio.com",
+            projectId: "foc-dashboard",
+            storageBucket: "foc-dashboard.firebasestorage.app",
+            messagingSenderId: "869888485796",
+            appId: "1:869888485796:web:82bf668dbfdc9c17a1f931"
         };
         
         let firebaseInitialized = false;
