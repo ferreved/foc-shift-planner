@@ -146,13 +146,20 @@
                     <div class="card">
                         <h3 style="margin-top: 0; color: #28a745;">☕ Add Break</h3>
                         <div class="input-group">
-                            <select id="break-engineer" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="break-engineer" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;" onchange="updateBreakTimeSlots()">
                                 <option value="">Select Engineer</option>
                                 ${ALL_ENGINEERS.map(eng => `<option value="${eng}">${eng}</option>`).join('')}
                             </select>
                             <select id="break-time-slot" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                                <option value="">Select Time Slot</option>
-                                ${TIME_SLOTS.map(slot => `<option value="${slot.time}">${slot.label}</option>`).join('')}
+                                <option value="">Select Start Time</option>
+                                <option value="07:00">07:00</option><option value="07:15">07:15</option><option value="07:30">07:30</option><option value="07:45">07:45</option>
+                                <option value="08:00">08:00</option><option value="08:15">08:15</option><option value="08:30">08:30</option><option value="08:45">08:45</option>
+                                <option value="09:00">09:00</option><option value="09:15">09:15</option><option value="09:30">09:30</option><option value="09:45">09:45</option>
+                                <option value="10:00">10:00</option><option value="10:15">10:15</option><option value="10:30">10:30</option><option value="10:45">10:45</option>
+                                <option value="11:00">11:00</option><option value="11:15">11:15</option><option value="11:30">11:30</option><option value="11:45">11:45</option>
+                                <option value="12:00">12:00</option><option value="12:15">12:15</option><option value="12:30">12:30</option><option value="12:45">12:45</option>
+                                <option value="13:00">13:00</option><option value="13:15">13:15</option><option value="13:30">13:30</option><option value="13:45">13:45</option>
+                                <option value="14:00">14:00</option><option value="14:15">14:15</option><option value="14:30">14:30</option><option value="14:45">14:45</option>
                             </select>
                             <select id="break-duration" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="15">15 minutes</option>
@@ -170,8 +177,15 @@
                                 ${ALL_ENGINEERS.map(eng => `<option value="${eng}">${eng}</option>`).join('')}
                             </select>
                             <select id="meeting-time-slot" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                                <option value="">Select Time Slot</option>
-                                ${TIME_SLOTS.map(slot => `<option value="${slot.time}">${slot.label}</option>`).join('')}
+                                <option value="">Select Start Time</option>
+                                <option value="07:00">07:00</option><option value="07:15">07:15</option><option value="07:30">07:30</option><option value="07:45">07:45</option>
+                                <option value="08:00">08:00</option><option value="08:15">08:15</option><option value="08:30">08:30</option><option value="08:45">08:45</option>
+                                <option value="09:00">09:00</option><option value="09:15">09:15</option><option value="09:30">09:30</option><option value="09:45">09:45</option>
+                                <option value="10:00">10:00</option><option value="10:15">10:15</option><option value="10:30">10:30</option><option value="10:45">10:45</option>
+                                <option value="11:00">11:00</option><option value="11:15">11:15</option><option value="11:30">11:30</option><option value="11:45">11:45</option>
+                                <option value="12:00">12:00</option><option value="12:15">12:15</option><option value="12:30">12:30</option><option value="12:45">12:45</option>
+                                <option value="13:00">13:00</option><option value="13:15">13:15</option><option value="13:30">13:30</option><option value="13:45">13:45</option>
+                                <option value="14:00">14:00</option><option value="14:15">14:15</option><option value="14:30">14:30</option><option value="14:45">14:45</option>
                             </select>
                             <select id="meeting-duration" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
                                 <option value="15">15 minutes</option>
@@ -195,6 +209,75 @@
             updateDashboard();
         }
         
+        function isEngineerOnSKG(engineer, timeSlot) {
+            if (!scheduleData[timeSlot] || !scheduleData[timeSlot].skg) return false;
+            return scheduleData[timeSlot].skg.includes(engineer);
+        }
+        
+        function updateBreakTimeSlots() {
+            const engineerSelect = document.getElementById('break-engineer');
+            const timeSlotSelect = document.getElementById('break-time-slot');
+            
+            if (!engineerSelect || !timeSlotSelect) return;
+            
+            const selectedEngineer = engineerSelect.value;
+            
+            // Clear existing options except the first one
+            timeSlotSelect.innerHTML = '<option value="">Select Start Time</option>';
+            
+            if (!selectedEngineer) {
+                // If no engineer selected, show all time slots
+                const allTimeSlots = [
+                    '07:00', '07:15', '07:30', '07:45',
+                    '08:00', '08:15', '08:30', '08:45',
+                    '09:00', '09:15', '09:30', '09:45',
+                    '10:00', '10:15', '10:30', '10:45',
+                    '11:00', '11:15', '11:30', '11:45',
+                    '12:00', '12:15', '12:30', '12:45',
+                    '13:00', '13:15', '13:30', '13:45',
+                    '14:00', '14:15', '14:30', '14:45'
+                ];
+                allTimeSlots.forEach(time => {
+                    const option = document.createElement('option');
+                    option.value = time;
+                    option.textContent = time;
+                    timeSlotSelect.appendChild(option);
+                });
+                return;
+            }
+            
+            // Filter time slots - only show times when engineer is NOT on SKG
+            const availableTimeSlots = [
+                '07:00', '07:15', '07:30', '07:45',
+                '08:00', '08:15', '08:30', '08:45',
+                '09:00', '09:15', '09:30', '09:45',
+                '10:00', '10:15', '10:30', '10:45',
+                '11:00', '11:15', '11:30', '11:45',
+                '12:00', '12:15', '12:30', '12:45',
+                '13:00', '13:15', '13:30', '13:45',
+                '14:00', '14:15', '14:30', '14:45'
+            ].filter(time => {
+                // Convert 15-minute slots to hourly slots for SKG check
+                const hourSlot = time.split(':')[0] + ':00';
+                return !isEngineerOnSKG(selectedEngineer, hourSlot);
+            });
+            
+            availableTimeSlots.forEach(time => {
+                const option = document.createElement('option');
+                option.value = time;
+                option.textContent = time;
+                timeSlotSelect.appendChild(option);
+            });
+            
+            if (availableTimeSlots.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No available slots (engineer on SKG all day)';
+                option.disabled = true;
+                timeSlotSelect.appendChild(option);
+            }
+        }
+        
         function addBreak() {
             const alias = document.getElementById('break-engineer').value;
             const timeSlot = document.getElementById('break-time-slot').value;
@@ -202,6 +285,13 @@
             
             if (!alias || !timeSlot || !duration) {
                 alert('Please select engineer, time slot, and duration');
+                return;
+            }
+            
+            // Double-check that engineer is not on SKG for this time slot
+            const hourSlot = timeSlot.split(':')[0] + ':00';
+            if (isEngineerOnSKG(alias, hourSlot)) {
+                alert('Cannot schedule break: Engineer is assigned to SKG during this time slot.');
                 return;
             }
             
@@ -219,6 +309,7 @@
             document.getElementById('break-engineer').value = '';
             document.getElementById('break-time-slot').value = '';
             document.getElementById('break-duration').value = '15';
+            updateBreakTimeSlots(); // Reset time slots
             
             alert('Break added successfully!');
         }
@@ -257,6 +348,7 @@
         function updateDashboard() {
             updateScheduleGrid();
             updateLiveStatus();
+            updateBreakTimeSlots(); // Update available break time slots when schedule changes
         }
         
         function updateScheduleGrid() {
