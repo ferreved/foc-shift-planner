@@ -74,7 +74,10 @@
         function syncToFirebase() {
             if (!firebaseInitialized) return;
             const data = { currentTeam, availableEngineers, extraEngineers, engineersOff, scheduleData, shiftLead, stepUpLead, lastUpdated: Date.now() };
-            scheduleRef.set(data).catch(err => console.log('Sync failed:', err));
+            console.log('Syncing to Firebase:', data);
+            scheduleRef.set(data).then(() => {
+                console.log('Sync successful');
+            }).catch(err => console.log('Sync failed:', err));
         }
         
         function setupRealtimeSync() {
@@ -302,17 +305,20 @@
             document.getElementById('shift-lead-selector').addEventListener('change', (e) => {
                 shiftLead = e.target.value;
                 document.getElementById('shift-lead-display').textContent = shiftLead;
+                console.log('Shift lead changed to:', shiftLead);
                 syncToFirebase();
             });
             
             document.getElementById('stepup-lead-selector').addEventListener('change', (e) => {
                 stepUpLead = e.target.value;
                 document.getElementById('stepup-lead-display').textContent = stepUpLead;
+                console.log('Step-up lead changed to:', stepUpLead);
                 syncToFirebase();
             });
             
             document.getElementById('auto-populate-btn').addEventListener('click', () => {
                 autoPopulateSchedule();
+                updateLiveStatus();
                 syncToFirebase();
             });
         }
@@ -405,6 +411,9 @@
             
             // Sync everything to Firebase
             syncToFirebase();
+            
+            // Force update displays
+            updateLiveStatus();
             
             alert('New day started! All data has been reset.');
         }
