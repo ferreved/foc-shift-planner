@@ -5,37 +5,76 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FOC Live Dashboard</title>
     <style>
-        body { margin: 0; padding: 0; background: #f5f5f5; font-family: Arial, sans-serif; }
-        .header { background: #232F3E; color: white; padding: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header-title { text-align: center; padding: 15px 0; margin: 0; font-size: 24px; color: #FF9900; }
-        .nav-tabs { display: flex; justify-content: center; background: #37475A; }
-        .nav-tab { padding: 12px 24px; color: white; text-decoration: none; border-bottom: 3px solid transparent; transition: all 0.3s; }
-        .nav-tab:hover { background: #4A5F7A; }
-        .nav-tab.active { background: #FF9900; color: #232F3E; border-bottom-color: #FF9900; }
-        .main-content { margin-top: 0; }
-        .time-indicator { background: #ffebee !important; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .card { background: white; border-radius: 8px; padding: 20px; margin: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .input-group { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
-        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-break { background: #28a745; color: white; }
-        .btn-meeting { background: #007bff; color: white; }
-        .status-online { color: #28a745; font-weight: bold; }
-        .schedule-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; }
-        .time-slot { border: 1px solid #ddd; border-radius: 4px; padding: 10px; margin: 5px 0; }
-        .current-time { background: #fff3cd; border-color: #ffeaa7; }
-        .team-section { margin: 10px 0; }
-        .engineer-list { display: flex; flex-wrap: wrap; gap: 5px; margin: 5px 0; }
-        .engineer-tag { background: #e3f2fd; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
-        .break-tag { background: #fff3cd; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
-        .meeting-tag { background: #ffebee; padding: 2px 8px; border-radius: 12px; font-size: 12px; }
-        .scoreboard { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 30px; border-radius: 15px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
-        .scoreboard-title { font-size: 28px; font-weight: bold; margin-bottom: 20px; color: #FFD700; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
-        .scoreboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
-        .stat-box { background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.2); }
-        .stat-number { font-size: 36px; font-weight: bold; color: #FFD700; }
-        .stat-label { font-size: 14px; margin-top: 5px; opacity: 0.9; }
-        .team-divider { height: 2px; background: linear-gradient(to right, #ddd, #999, #ddd); margin: 15px 0; border-radius: 1px; }
+        * { box-sizing: border-box; }
+        :root {
+            --bg-primary: #f5f7fa;
+            --bg-secondary: white;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --skg-color: #8e44ad;
+            --textables-color: #e67e22;
+            --break-color: #34c759;
+            --meeting-color: #ff3b30;
+            --border-color: rgba(0,0,0,0.1);
+        }
+        [data-theme="dark"] {
+            --bg-primary: #1c1c1e;
+            --bg-secondary: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #98989d;
+            --border-color: rgba(255,255,255,0.1);
+        }
+        body { margin: 0; padding: 0; background: var(--bg-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text-primary); transition: all 0.3s ease; }
+        .header { background: rgba(255,255,255,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100; position: relative; }
+        [data-theme="dark"] .header { background: rgba(44,44,46,0.8); }
+        .theme-toggle { position: absolute; top: 20px; right: 20px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 12px; cursor: pointer; font-size: 14px; transition: all 0.2s ease; }
+        .theme-toggle:hover { transform: translateY(-1px); }
+        .header-title { text-align: center; padding: 20px 0; margin: 0; font-size: 28px; font-weight: 600; color: #007aff; }
+        .nav-tabs { display: flex; justify-content: center; background: transparent; padding: 0 20px 20px; }
+        .nav-tab { padding: 12px 24px; color: #86868b; text-decoration: none; border-radius: 20px; transition: all 0.3s ease; margin: 0 8px; font-weight: 500; }
+        .nav-tab:hover { background: rgba(0,122,255,0.1); color: #007aff; }
+        .nav-tab.active { background: #007aff; color: white; }
+        .main-content { padding: 20px; }
+        .time-indicator { background: rgba(255,149,0,0.1) !important; border-left: 4px solid #ff9500 !important; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+        .card { background: var(--bg-secondary); border-radius: 16px; padding: 24px; margin: 16px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid var(--border-color); }
+        .input-group { display: flex; gap: 12px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
+        .btn { padding: 12px 20px; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s ease; }
+        .btn-break { background: #34c759; color: white; }
+        .btn-break:hover { background: #28a745; transform: translateY(-1px); }
+        .btn-meeting { background: #007aff; color: white; }
+        .btn-meeting:hover { background: #0056cc; transform: translateY(-1px); }
+        .status-online { color: #34c759; font-weight: 600; }
+        .input-select { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; min-width: 140px; }
+        .schedule-grid { display: flex; gap: 20px; overflow-x: auto; padding-bottom: 10px; }
+        .schedule-grid::-webkit-scrollbar { height: 8px; }
+        .schedule-grid::-webkit-scrollbar-track { background: var(--border-color); border-radius: 4px; }
+        .schedule-grid::-webkit-scrollbar-thumb { background: #007aff; border-radius: 4px; }
+        .schedule-grid::-webkit-scrollbar-thumb:hover { background: #0056cc; }
+        .time-slot { background: var(--bg-secondary); border-radius: 16px; padding: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid var(--border-color); min-width: 280px; max-width: 320px; flex-shrink: 0; }
+        .current-time { background: rgba(255,149,0,0.1); border-left: 4px solid #ff9500; }
+        .team-section { margin: 16px 0; }
+        .engineer-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; word-wrap: break-word; }
+        .engineer-tag { background: rgba(0,122,255,0.1); padding: 6px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; color: var(--text-primary); word-break: break-word; max-width: 100%; }
+        .break-tag { background: rgba(52,199,89,0.1); padding: 6px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; color: var(--break-color); word-break: break-word; max-width: 100%; }
+        .meeting-tag { background: rgba(255,59,48,0.1); padding: 6px 12px; border-radius: 12px; font-size: 13px; font-weight: 500; color: var(--meeting-color); word-break: break-word; max-width: 100%; }
+        .scoreboard { background: linear-gradient(135deg, #007aff 0%, #5856d6 100%); color: white; border-radius: 20px; padding: 32px; text-align: center; box-shadow: 0 8px 32px rgba(0,122,255,0.3); }
+        .scoreboard-title { font-size: 32px; font-weight: 700; margin-bottom: 24px; }
+        .scoreboard-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-top: 24px; }
+        .stat-box { background: rgba(255,255,255,0.15); padding: 20px; border-radius: 16px; backdrop-filter: blur(10px); }
+        .stat-number { font-size: 36px; font-weight: 700; margin-bottom: 8px; }
+        .stat-label { font-size: 14px; opacity: 0.9; font-weight: 500; }
+        .team-divider { height: 1px; background: var(--border-color); margin: 16px 0; }
+        .section-title { font-size: 16px; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .clocks-container { display: flex; justify-content: center; gap: 40px; margin-top: 20px; flex-wrap: wrap; }
+        .clock-item { text-align: center; }
+        .analog-clock { width: 80px; height: 80px; border: 3px solid var(--text-primary); border-radius: 50%; position: relative; margin: 0 auto 10px; }
+        .clock-hand { position: absolute; background: var(--text-primary); transform-origin: bottom center; }
+        .hour-hand { width: 3px; height: 25px; top: 15px; left: 50%; margin-left: -1.5px; }
+        .minute-hand { width: 2px; height: 35px; top: 5px; left: 50%; margin-left: -1px; }
+        .clock-center { width: 6px; height: 6px; background: var(--text-primary); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .clock-label { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .clock-time { font-size: 12px; color: var(--text-secondary); margin-top: 5px; }
     </style>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -43,6 +82,7 @@
 </head>
 <body>
     <div class="header">
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
         <h1 class="header-title">DUB Shift Planner</h1>
         <div class="nav-tabs">
             <a href="dashboard.html" class="nav-tab active">Dashboard</a>
@@ -85,6 +125,47 @@
         const MEETING_REASONS = ['1:1 Meeting', 'Other Meetings', 'Advocacy', 'Interview', 'Shadow', 'Project', 'Training'];
         const ALL_ENGINEERS = ['azjimene', 'ddunwood', 'xnevpaul', 'ssanthag', 'mwanyali', 'andrwmn', 'mcdlvega', 'criiliof', 'almelvio', 'rowhitei', 'tansthef', 'tracykie', 'shlakshy', 'kellyerd', 'ferreved'];
         
+        // Individual colors for each engineer
+        const ENGINEER_COLORS = {
+            'azjimene': '#FF6B6B', 'ddunwood': '#4ECDC4', 'xnevpaul': '#45B7D1', 'ssanthag': '#96CEB4',
+            'mwanyali': '#FFEAA7', 'andrwmn': '#DDA0DD', 'mcdlvega': '#98D8C8', 'criiliof': '#F7DC6F',
+            'almelvio': '#BB8FCE', 'rowhitei': '#85C1E9', 'tansthef': '#F8C471', 'tracykie': '#82E0AA',
+            'shlakshy': '#F1948A', 'kellyerd': '#85C1E9', 'ferreved': '#D7BDE2'
+        };
+        
+        function getEngineerColor(engineer) {
+            return ENGINEER_COLORS[engineer] || '#007aff';
+        }
+        
+        function getScheduledEngineers() {
+            const scheduledEngineers = new Set();
+            
+            // Get all engineers from all time slots in the schedule
+            TIME_SLOTS.forEach(slot => {
+                const data = scheduleData[slot.time];
+                if (data) {
+                    // Add SKG engineers
+                    if (data.skg) {
+                        data.skg.forEach(eng => {
+                            if (eng && eng.trim() !== '') {
+                                scheduledEngineers.add(eng);
+                            }
+                        });
+                    }
+                    // Add Textables engineers
+                    if (data.textables) {
+                        data.textables.forEach(eng => {
+                            if (eng && eng.trim() !== '') {
+                                scheduledEngineers.add(eng);
+                            }
+                        });
+                    }
+                }
+            });
+            
+            return Array.from(scheduledEngineers);
+        }
+        
         let scheduleData = {};
         let userInputs = {};
         let currentTeam = 'A';
@@ -94,6 +175,36 @@
         function syncUserInput(data) {
             if (!firebaseInitialized) return;
             breaksRef.push(data).catch(err => console.log('Sync failed:', err));
+        }
+        
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+        
+        function checkTimeOverlap(engineer, startTime, durationMinutes) {
+            const startMinutes = timeToMinutes(startTime);
+            const endMinutes = startMinutes + durationMinutes;
+            
+            // Check all existing breaks and meetings for this engineer
+            const existingEntries = Object.values(userInputs || {}).filter(input => 
+                input.alias === engineer && (input.type === 'break' || input.type === 'meeting')
+            );
+            
+            for (const entry of existingEntries) {
+                const entryStartMinutes = timeToMinutes(entry.timeSlot);
+                const entryDurationMinutes = parseInt(entry.duration.replace(' minutes', ''));
+                const entryEndMinutes = entryStartMinutes + entryDurationMinutes;
+                
+                // Check for any overlap (even 1 minute overlap is not allowed)
+                if ((startMinutes < entryEndMinutes) && (endMinutes > entryStartMinutes)) {
+                    return {
+                        hasOverlap: true,
+                        conflictingEntry: entry
+                    };
+                }
+            }
+            return { hasOverlap: false };
         }
         
         function setupRealtimeSync() {
@@ -130,13 +241,30 @@
                     
                     <!-- Live Status Board -->
                     <div class="scoreboard">
-                        <div class="scoreboard-title">FOC LIVE STATUS</div>
+                        <div class="scoreboard-title">SHIFT LIVE STATUS</div>
                         <div id="live-status-content"></div>
                     </div>
                     
                     <!-- Current Time -->
                     <div class="card">
-                        <div id="current-time" style="text-align: center; font-size: 24px; font-weight: bold; color: #007bff;"></div>
+                        <div id="current-time" style="text-align: center; font-size: 24px; font-weight: 600; color: var(--text-primary); background: rgba(0,122,255,0.1); padding: 16px; border-radius: 12px;"></div>
+                        <div class="clocks-container">
+                            <div class="clock-item">
+                                <div class="clock-label">🇺🇸 IAD</div>
+                                <div class="clock-time" id="time-iad" style="font-size: 18px; font-weight: 600;"></div>
+                                <div id="date-iad" style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;"></div>
+                            </div>
+                            <div class="clock-item">
+                                <div class="clock-label">🇦🇺 SYD</div>
+                                <div class="clock-time" id="time-syd" style="font-size: 18px; font-weight: 600;"></div>
+                                <div id="date-syd" style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;"></div>
+                            </div>
+                            <div class="clock-item">
+                                <div class="clock-label">🇮🇳 BOM</div>
+                                <div class="clock-time" id="time-bom" style="font-size: 18px; font-weight: 600;"></div>
+                                <div id="date-bom" style="font-size: 12px; color: var(--text-secondary); margin-top: 5px;"></div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- Live Schedule Grid -->
@@ -144,13 +272,12 @@
                     
                     <!-- User Input Section -->
                     <div class="card">
-                        <h3 style="margin-top: 0; color: #28a745;">☕ Add Break</h3>
+                        <h3 class="section-title" style="margin-top: 0; color: #34c759;">☕ Add Break</h3>
                         <div class="input-group">
-                            <select id="break-engineer" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;" onchange="updateBreakTimeSlots()">
+                            <select id="break-engineer" class="input-select" onchange="updateBreakTimeSlots()">
                                 <option value="">Select Engineer</option>
-                                ${ALL_ENGINEERS.map(eng => `<option value="${eng}">${eng}</option>`).join('')}
                             </select>
-                            <select id="break-time-slot" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="break-time-slot" class="input-select">
                                 <option value="">Select Start Time</option>
                                 <option value="07:00">07:00</option><option value="07:15">07:15</option><option value="07:30">07:30</option><option value="07:45">07:45</option>
                                 <option value="08:00">08:00</option><option value="08:15">08:15</option><option value="08:30">08:30</option><option value="08:45">08:45</option>
@@ -161,7 +288,7 @@
                                 <option value="13:00">13:00</option><option value="13:15">13:15</option><option value="13:30">13:30</option><option value="13:45">13:45</option>
                                 <option value="14:00">14:00</option><option value="14:15">14:15</option><option value="14:30">14:30</option><option value="14:45">14:45</option>
                             </select>
-                            <select id="break-duration" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="break-duration" class="input-select">
                                 <option value="15">15 minutes</option>
                                 <option value="30">30 minutes</option>
                             </select>
@@ -170,13 +297,12 @@
                     </div>
                     
                     <div class="card">
-                        <h3 style="margin-top: 0; color: #007bff;">📅 Add Meeting</h3>
+                        <h3 class="section-title" style="margin-top: 0; color: #007aff;">📅 Add Meeting</h3>
                         <div class="input-group">
-                            <select id="meeting-engineer" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="meeting-engineer" class="input-select">
                                 <option value="">Select Engineer</option>
-                                ${ALL_ENGINEERS.map(eng => `<option value="${eng}">${eng}</option>`).join('')}
                             </select>
-                            <select id="meeting-time-slot" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="meeting-time-slot" class="input-select">
                                 <option value="">Select Start Time</option>
                                 <option value="07:00">07:00</option><option value="07:15">07:15</option><option value="07:30">07:30</option><option value="07:45">07:45</option>
                                 <option value="08:00">08:00</option><option value="08:15">08:15</option><option value="08:30">08:30</option><option value="08:45">08:45</option>
@@ -187,20 +313,20 @@
                                 <option value="13:00">13:00</option><option value="13:15">13:15</option><option value="13:30">13:30</option><option value="13:45">13:45</option>
                                 <option value="14:00">14:00</option><option value="14:15">14:15</option><option value="14:30">14:30</option><option value="14:45">14:45</option>
                             </select>
-                            <select id="meeting-duration" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="meeting-duration" class="input-select">
                                 <option value="15">15 minutes</option>
                                 <option value="30">30 minutes</option>
                                 <option value="45">45 minutes</option>
                                 <option value="60">1 hour</option>
                             </select>
-                            <select id="meeting-reason" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
+                            <select id="meeting-reason" class="input-select">
                                 <option value="">Select Reason</option>
                                 ${MEETING_REASONS.map(reason => `<option value="${reason}">${reason}</option>`).join('')}
                             </select>
                             <button class="btn btn-meeting" onclick="addMeeting()">Add Meeting</button>
                         </div>
-                        <div id="sync-status" class="${firebaseInitialized ? 'status-online' : 'status-offline'}" style="margin-top: 10px;">
-                            ${firebaseInitialized ? 'Live Sync ON' : '⚠️ Offline Mode'}
+                        <div id="sync-status" class="${firebaseInitialized ? 'status-online' : 'status-offline'}" style="margin-top: 16px; padding: 12px; border-radius: 10px; background: ${firebaseInitialized ? 'rgba(52,199,89,0.1)' : 'rgba(255,59,48,0.1)'}; font-size: 14px; font-weight: 500;">
+                            ${firebaseInitialized ? '🟢 Live Sync ON' : '⚠️ Offline Mode'}
                         </div>
                     </div>
                 </div>`;
@@ -288,6 +414,15 @@
                 return;
             }
             
+            // Check for time overlap
+            const durationMinutes = parseInt(duration);
+            const overlapCheck = checkTimeOverlap(alias, timeSlot, durationMinutes);
+            if (overlapCheck.hasOverlap) {
+                const conflict = overlapCheck.conflictingEntry;
+                alert(`Cannot schedule break: Time overlaps with existing ${conflict.type} for ${alias} at ${conflict.timeSlot} (${conflict.duration}).`);
+                return;
+            }
+            
             // Double-check that engineer is not on SKG for this time slot
             const hourSlot = timeSlot.split(':')[0] + ':00';
             if (isEngineerOnSKG(alias, hourSlot)) {
@@ -325,6 +460,15 @@
                 return;
             }
             
+            // Check for time overlap
+            const durationMinutes = parseInt(duration);
+            const overlapCheck = checkTimeOverlap(alias, timeSlot, durationMinutes);
+            if (overlapCheck.hasOverlap) {
+                const conflict = overlapCheck.conflictingEntry;
+                alert(`Cannot schedule meeting: Time overlaps with existing ${conflict.type} for ${alias} at ${conflict.timeSlot} (${conflict.duration}).`);
+                return;
+            }
+            
             const meetingData = {
                 type: 'meeting',
                 alias: alias,
@@ -345,10 +489,68 @@
             alert('Meeting added successfully!');
         }
         
+        function scrollToCurrentTimeSlot() {
+            const now = new Date();
+            const currentHour = now.getHours();
+            
+            if (currentHour >= 7 && currentHour < 15) {
+                const currentTimeSlot = `${currentHour}:00`;
+                const currentCard = document.querySelector(`[data-time="${currentTimeSlot}"]`);
+                const grid = document.getElementById('schedule-grid');
+                
+                if (currentCard && grid) {
+                    const cardLeft = currentCard.offsetLeft;
+                    const cardWidth = currentCard.offsetWidth;
+                    const gridWidth = grid.offsetWidth;
+                    
+                    // Center the current card in view
+                    const scrollPosition = cardLeft - (gridWidth / 2) + (cardWidth / 2);
+                    
+                    grid.scrollTo({
+                        left: Math.max(0, scrollPosition),
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        }
+        
         function updateDashboard() {
             updateScheduleGrid();
             updateLiveStatus();
+            updateEngineerDropdowns(); // Update engineer dropdowns based on schedule
             updateBreakTimeSlots(); // Update available break time slots when schedule changes
+        }
+        
+        function updateEngineerDropdowns() {
+            const scheduledEngineers = getScheduledEngineers();
+            
+            // Update break engineer dropdown
+            const breakSelect = document.getElementById('break-engineer');
+            if (breakSelect) {
+                const currentValue = breakSelect.value;
+                breakSelect.innerHTML = '<option value="">Select Engineer</option>';
+                scheduledEngineers.forEach(engineer => {
+                    const option = document.createElement('option');
+                    option.value = engineer;
+                    option.textContent = engineer;
+                    if (engineer === currentValue) option.selected = true;
+                    breakSelect.appendChild(option);
+                });
+            }
+            
+            // Update meeting engineer dropdown
+            const meetingSelect = document.getElementById('meeting-engineer');
+            if (meetingSelect) {
+                const currentValue = meetingSelect.value;
+                meetingSelect.innerHTML = '<option value="">Select Engineer</option>';
+                scheduledEngineers.forEach(engineer => {
+                    const option = document.createElement('option');
+                    option.value = engineer;
+                    option.textContent = engineer;
+                    if (engineer === currentValue) option.selected = true;
+                    meetingSelect.appendChild(option);
+                });
+            }
         }
         
         function updateScheduleGrid() {
@@ -375,22 +577,35 @@
                 if (!data.breaks) data.breaks = [];
                 if (!data.outOfOps) data.outOfOps = [];
                 
-                // Get user inputs for this time slot
+                // Get user inputs that are active during this time slot (including those that span multiple slots)
+                function isActiveInTimeSlot(input, slotTime) {
+                    const inputStartMinutes = timeToMinutes(input.timeSlot);
+                    const inputDurationMinutes = parseInt(input.duration.replace(' minutes', ''));
+                    const inputEndMinutes = inputStartMinutes + inputDurationMinutes;
+                    
+                    const slotStartMinutes = timeToMinutes(slotTime);
+                    const slotEndMinutes = slotStartMinutes + 60; // Each slot is 1 hour
+                    
+                    // Check if input overlaps with this time slot
+                    // Exclude meetings that end exactly at the start of the next slot (no overlap)
+                    return (inputStartMinutes < slotEndMinutes) && (inputEndMinutes > slotStartMinutes);
+                }
+                
                 const userBreaks = Object.values(userInputs || {}).filter(input => 
-                    input.timeSlot === slot.time && input.type === 'break'
+                    input.type === 'break' && isActiveInTimeSlot(input, slot.time)
                 );
                 const userMeetings = Object.values(userInputs || {}).filter(input => 
-                    input.timeSlot === slot.time && input.type === 'meeting'
+                    input.type === 'meeting' && isActiveInTimeSlot(input, slot.time)
                 );
                 
                 gridHTML += `
-                    <div class="time-slot ${isCurrentTime ? 'current-time' : ''}">
-                        <h4 style="margin: 0 0 10px 0; color: ${isCurrentTime ? '#856404' : '#333'};">
+                    <div class="time-slot ${isCurrentTime ? 'current-time' : ''}" data-time="${slot.time}">
+                        <h4 style="margin: 0 0 16px 0; color: ${isCurrentTime ? '#ff9500' : 'var(--text-primary)'}; font-size: 18px; font-weight: 600;">
                             ${slot.label} ${isCurrentTime ? '(CURRENT)' : ''}
                         </h4>
                         
                         <div class="team-section">
-                            <strong style="color: #4CAF50;">🔍 SKG Team:</strong>
+                            <div class="section-title" style="color: var(--skg-color);">🛰️ SKG Team</div>
                             <div class="engineer-list">
                                 ${(data.skg || []).filter(eng => eng).map(eng => {
                                     const userBreak = userBreaks.find(b => b.alias === eng);
@@ -398,16 +613,16 @@
                                     let icon = '';
                                     if (userBreak) icon = ` ☕${userBreak.duration.replace(' minutes', 'm')}`;
                                     if (userMeeting) icon = ` 📅${userMeeting.duration.replace(' minutes', 'm')}`;
-                                    return `<span class="engineer-tag">${eng}${icon}</span>`;
-                                }).join('') || '<span style="color: #999;">No assignments</span>'}
+                                    const engineerColor = getEngineerColor(eng);
+                                    return `<span class="engineer-tag" style="background: ${engineerColor}20; border: 1px solid ${engineerColor}; color: var(--text-primary);">${eng}${icon}</span>`;
+                                }).join('') || '<span style="color: var(--text-secondary); font-style: italic;">No assignments</span>'}
                             </div>
                         </div>
-                        
                         
                         <div class="team-divider"></div>
                         
                         <div class="team-section">
-                            <strong style="color: #FF9800;">📝 Textables Team:</strong>
+                            <div class="section-title" style="color: var(--textables-color);">📋 Textables Team</div>
                             <div class="engineer-list">
                                 ${(data.textables || []).filter(eng => eng).map(eng => {
                                     const userBreak = userBreaks.find(b => b.alias === eng);
@@ -415,32 +630,44 @@
                                     let icon = '';
                                     if (userBreak) icon = ` ☕${userBreak.duration.replace(' minutes', 'm')}`;
                                     if (userMeeting) icon = ` 📅${userMeeting.duration.replace(' minutes', 'm')}`;
-                                    return `<span class="engineer-tag">${eng}${icon}</span>`;
-                                }).join('') || '<span style="color: #999;">No assignments</span>'}
+                                    const engineerColor = getEngineerColor(eng);
+                                    return `<span class="engineer-tag" style="background: ${engineerColor}20; border: 1px solid ${engineerColor}; color: var(--text-primary);">${eng}${icon}</span>`;
+                                }).join('') || '<span style="color: var(--text-secondary); font-style: italic;">No assignments</span>'}
                             </div>
                         </div>
                         
                         <div class="team-section">
-                            <strong style="color: #2196F3;">☕ Breaks:</strong>
+                            <div class="section-title" style="color: #34c759;">☕ Breaks</div>
                             <div class="engineer-list">
-                                ${(data.breaks || []).filter(eng => eng).map(eng => `<span class="break-tag">${eng}</span>`).join('')}
-                                ${userBreaks.map(brk => `<span class="break-tag">${brk.alias} (${brk.duration})</span>`).join('')}
-                                ${((data.breaks || []).filter(eng => eng).length === 0 && userBreaks.length === 0) ? '<span style="color: #999;">No breaks</span>' : ''}
+                                ${(data.breaks || []).filter(eng => eng).map(eng => `<span class="break-tag" style="color: var(--text-primary);">☕ ${eng}</span>`).join('')}
+                                ${userBreaks.map(brk => {
+                                    const startTime = brk.timeSlot;
+                                    const duration = brk.duration;
+                                    return `<span class="break-tag" style="color: var(--text-primary);">☕ ${brk.alias} ${startTime} (${duration})</span>`;
+                                }).join('')}
+                                ${((data.breaks || []).filter(eng => eng).length === 0 && userBreaks.length === 0) ? '<span style="color: var(--text-secondary); font-style: italic;">No breaks</span>' : ''}
                             </div>
                         </div>
                         
                         <div class="team-section">
-                            <strong style="color: #9C27B0;">📅 Meetings:</strong>
+                            <div class="section-title" style="color: #ff3b30;">📅 Meetings</div>
                             <div class="engineer-list">
-                                ${(data.outOfOps || []).filter(item => item && item.engineer).map(item => `<span class="meeting-tag">${item.engineer} - ${item.reason}</span>`).join('')}
-                                ${userMeetings.map(mtg => `<span class="meeting-tag">${mtg.alias} - ${mtg.reason} (${mtg.duration})</span>`).join('')}
-                                ${((data.outOfOps || []).filter(item => item && item.engineer).length === 0 && userMeetings.length === 0) ? '<span style="color: #999;">No meetings</span>' : ''}
+                                ${(data.outOfOps || []).filter(item => item && item.engineer).map(item => `<span class="meeting-tag" style="color: var(--text-primary);">📅 ${item.engineer} - ${item.reason}</span>`).join('')}
+                                ${userMeetings.map(mtg => {
+                                    const startTime = mtg.timeSlot;
+                                    const duration = mtg.duration;
+                                    return `<span class="meeting-tag" style="color: var(--text-primary);">📅 ${mtg.alias} ${startTime} - ${mtg.reason} (${duration})</span>`;
+                                }).join('')}
+                                ${((data.outOfOps || []).filter(item => item && item.engineer).length === 0 && userMeetings.length === 0) ? '<span style="color: var(--text-secondary); font-style: italic;">No meetings</span>' : ''}
                             </div>
                         </div>
                     </div>`;
             });
             
             grid.innerHTML = gridHTML;
+            
+            // Auto-scroll to current time slot
+            scrollToCurrentTimeSlot();
         }
         
         function updateLiveStatus() {
@@ -455,10 +682,10 @@
             const statusContent = document.getElementById('live-status-content');
             if (!statusContent) return;
             
-            let statusHTML = `<div style="font-size: 18px; margin-bottom: 20px; color: #FFD700;">TEAM ${currentTeam} - ${currentTimeSlot || 'OFF HOURS'}</div>`;
+            let statusHTML = `<div style="font-size: 24px; margin-bottom: 20px; font-weight: 700;">TEAM ${currentTeam} - ${currentTimeSlot || 'OFF HOURS'}</div>`;
             
             // Display shift lead and step-up lead
-            statusHTML += `<div style="font-size: 16px; margin-bottom: 15px; color: #FFD700;">`;
+            statusHTML += `<div style="font-size: 16px; margin-bottom: 20px; opacity: 0.9;">`;
             statusHTML += `Shift Lead: ${shiftLead || 'Not Set'} | Step-up Lead: ${stepUpLead || 'Not Set'}`;
             statusHTML += `</div>`;
             
@@ -468,12 +695,23 @@
                 const textablesCount = data.textables.filter(eng => eng !== '').length;
                 const outOfOpsCount = data.outOfOps ? data.outOfOps.filter(item => item.engineer !== '').length : 0;
                 
-                // Count user inputs for current slot
+                // Count user inputs active during current slot (including those that span multiple slots)
+                function isActiveInCurrentSlot(input, currentSlot) {
+                    const inputStartMinutes = timeToMinutes(input.timeSlot);
+                    const inputDurationMinutes = parseInt(input.duration.replace(' minutes', ''));
+                    const inputEndMinutes = inputStartMinutes + inputDurationMinutes;
+                    
+                    const slotStartMinutes = timeToMinutes(currentSlot);
+                    const slotEndMinutes = slotStartMinutes + 60;
+                    
+                    return (inputStartMinutes < slotEndMinutes) && (inputEndMinutes > slotStartMinutes);
+                }
+                
                 const userBreaksCount = Object.values(userInputs || {}).filter(input => 
-                    input.timeSlot === currentTimeSlot && input.type === 'break'
+                    input.type === 'break' && isActiveInCurrentSlot(input, currentTimeSlot)
                 ).length;
                 const userMeetingsCount = Object.values(userInputs || {}).filter(input => 
-                    input.timeSlot === currentTimeSlot && input.type === 'meeting'
+                    input.type === 'meeting' && isActiveInCurrentSlot(input, currentTimeSlot)
                 ).length;
                 
                 const totalActive = skgCount + textablesCount;
@@ -483,30 +721,30 @@
                 const skgNames = data.skg.filter(eng => eng !== '').join(', ');
                 const textablesNames = data.textables.filter(eng => eng !== '').join(', ');
                 const outOfOpsNames = Object.values(userInputs || {}).filter(input => 
-                    input.timeSlot === currentTimeSlot && (input.type === 'break' || input.type === 'meeting')
-                ).map(input => `${input.alias} (${input.type === 'break' ? '☕' : '📅'}${input.duration.replace(' minutes', 'm')})`).join(', ');
+                    (input.type === 'break' || input.type === 'meeting') && isActiveInCurrentSlot(input, currentTimeSlot)
+                ).map(input => `${input.alias} (${input.type === 'break' ? '☕' : '📅'}${input.timeSlot}-${input.duration.replace(' minutes', 'm')})`).join(', ');
                 
                 statusHTML += `
                     <div class="scoreboard-stats">
                         <div class="stat-box">
                             <div class="stat-number">${skgCount}</div>
                             <div class="stat-label">SKG ENGINEERS</div>
-                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">${skgNames || 'None'}</div>
+                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; line-height: 1.3;">${skgNames || 'None'}</div>
                         </div>
                         <div class="stat-box">
                             <div class="stat-number">${textablesCount}</div>
                             <div class="stat-label">TEXTABLES ENGINEERS</div>
-                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">${textablesNames || 'None'}</div>
+                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; line-height: 1.3;">${textablesNames || 'None'}</div>
                         </div>
                         <div class="stat-box">
                             <div class="stat-number">${totalActive}</div>
                             <div class="stat-label">TOTAL ACTIVE</div>
-                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">SKG + Textables</div>
+                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">SKG + Textables</div>
                         </div>
                         <div class="stat-box">
                             <div class="stat-number">${totalOut}</div>
                             <div class="stat-label">OUT OF OPS</div>
-                            <div style="font-size: 10px; margin-top: 5px; opacity: 0.8;">${outOfOpsNames || 'None'}</div>
+                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; line-height: 1.3;">${outOfOpsNames || 'None'}</div>
                         </div>
                     </div>`;
             } else {
@@ -516,16 +754,83 @@
             statusContent.innerHTML = statusHTML;
         }
         
+        function updateAnalogClock(region, hours, minutes) {
+            const hourHand = document.getElementById(`hour-hand-${region}`);
+            const minuteHand = document.getElementById(`minute-hand-${region}`);
+            
+            if (hourHand && minuteHand) {
+                const hourAngle = (hours % 12) * 30 + minutes * 0.5;
+                const minuteAngle = minutes * 6;
+                
+                hourHand.style.transform = `rotate(${hourAngle}deg)`;
+                minuteHand.style.transform = `rotate(${minuteAngle}deg)`;
+            }
+        }
+        
         function startTimeClock() {
             function updateTime() {
                 const now = new Date();
+                
+                // Update date and time together
+                const dateString = now.toLocaleDateString('en-GB', {
+                    weekday: 'short',
+                    day: '2-digit',
+                    month: 'short'
+                }).toUpperCase();
+                
                 const timeString = now.toLocaleTimeString('en-GB', {
                     hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
                 });
                 
                 const timeElement = document.getElementById('current-time');
                 if (timeElement) {
-                    timeElement.textContent = `Current Time: ${timeString}`;
+                    timeElement.textContent = `🇮🇪 DUB - ${dateString} - ${timeString}`;
+                }
+                
+                // Update regional times
+                const iadTime = new Date(now.toLocaleString("en-US", {timeZone: "America/New_York"}));
+                const sydTime = new Date(now.toLocaleString("en-US", {timeZone: "Australia/Sydney"}));
+                const bomTime = new Date(now.toLocaleString("en-US", {timeZone: "Asia/Kolkata"}));
+                
+                // Update digital times
+                const iadElement = document.getElementById('time-iad');
+                const sydElement = document.getElementById('time-syd');
+                const bomElement = document.getElementById('time-bom');
+                const iadDateElement = document.getElementById('date-iad');
+                const sydDateElement = document.getElementById('date-syd');
+                const bomDateElement = document.getElementById('date-bom');
+                
+                if (iadElement) {
+                    iadElement.textContent = iadTime.toLocaleTimeString('en-GB', {
+                        hour12: false, hour: '2-digit', minute: '2-digit'
+                    });
+                }
+                if (sydElement) {
+                    sydElement.textContent = sydTime.toLocaleTimeString('en-GB', {
+                        hour12: false, hour: '2-digit', minute: '2-digit'
+                    });
+                }
+                if (bomElement) {
+                    bomElement.textContent = bomTime.toLocaleTimeString('en-GB', {
+                        hour12: false, hour: '2-digit', minute: '2-digit'
+                    });
+                }
+                
+                // Update regional dates
+                if (iadDateElement) {
+                    iadDateElement.textContent = iadTime.toLocaleDateString('en-GB', {
+                        weekday: 'short', day: '2-digit', month: 'short'
+                    }).toUpperCase();
+                }
+                if (sydDateElement) {
+                    sydDateElement.textContent = sydTime.toLocaleDateString('en-GB', {
+                        weekday: 'short', day: '2-digit', month: 'short'
+                    }).toUpperCase();
+                }
+                if (bomDateElement) {
+                    bomDateElement.textContent = bomTime.toLocaleDateString('en-GB', {
+                        weekday: 'short', day: '2-digit', month: 'short'
+                    }).toUpperCase();
                 }
                 
                 // Update every minute
@@ -539,8 +844,26 @@
             setInterval(updateDashboard, 30000); // Refresh every 30 seconds
         }
         
+        // Theme toggle functionality
+        let isDarkMode = localStorage.getItem('darkMode') === 'true';
+        
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            document.querySelector('.theme-toggle').textContent = isDarkMode ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDarkMode);
+        }
+        
+        function initTheme() {
+            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            document.querySelector('.theme-toggle').textContent = isDarkMode ? '☀️' : '🌙';
+        }
+        
         // Initialize when page loads
-        document.addEventListener('DOMContentLoaded', initDashboard);
+        document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            initDashboard();
+        });
     </script>
 </body>
 </html>
