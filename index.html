@@ -336,18 +336,18 @@
             const container = document.getElementById('user-inputs-display');
             if (!container) return;
             
-            const inputs = Object.values(userInputs || {});
+            const inputs = Object.entries(userInputs || {});
             if (inputs.length === 0) {
                 container.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No user inputs yet.</p>';
                 return;
             }
             
             const groupedInputs = {};
-            inputs.forEach(input => {
+            inputs.forEach(([key, input]) => {
                 if (!groupedInputs[input.timeSlot]) {
                     groupedInputs[input.timeSlot] = [];
                 }
-                groupedInputs[input.timeSlot].push(input);
+                groupedInputs[input.timeSlot].push({...input, key});
             });
             
             let html = '';
@@ -357,7 +357,10 @@
                 groupedInputs[timeSlot].forEach(input => {
                     const icon = input.type === 'break' ? '☕' : '📅';
                     const color = input.type === 'break' ? '#28a745' : '#dc3545';
-                    html += `<span style="color: ${color}; margin-right: 15px;">${icon} ${input.alias} - ${input.type === 'break' ? input.duration : input.reason + ' (' + input.duration + ')'}</span>`;
+                    html += `<div style="display: flex; align-items: center; justify-content: space-between; margin: 5px 0; padding: 5px; background: rgba(0,0,0,0.05); border-radius: 4px;">`;
+                    html += `<span style="color: ${color};">${icon} ${input.alias} - ${input.type === 'break' ? input.duration : input.reason + ' (' + input.duration + ')'}</span>`;
+                    html += `<button onclick="removeUserInput('${input.key}')" class="btn btn-danger" style="padding: 4px 8px; font-size: 12px;">Remove</button>`;
+                    html += `</div>`;
                 });
                 html += `</div>`;
             });
@@ -901,6 +904,21 @@
             }
         }
 
+        function removeUserInput(key) {
+            if (confirm('Are you sure you want to remove this break/meeting?')) {
+                if (firebaseInitialized) {
+                    userInputsRef.child(key).remove().then(() => {
+                        console.log('User input removed successfully');
+                        updateLiveStatus(); // Immediately update live status
+                    }).catch(err => console.log('Remove failed:', err));
+                } else {
+                    delete userInputs[key];
+                    updateUserInputsDisplay();
+                    updateLiveStatus();
+                }
+            }
+        }
+        
         function logout() {
             isAuthenticated = false;
             showLogin();
