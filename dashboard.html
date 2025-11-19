@@ -258,10 +258,8 @@
             // Listen to user inputs (breaks/meetings)
             breaksRef.on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data) {
-                    userInputs = data;
-                    updateDashboard();
-                }
+                userInputs = data || {};
+                updateDashboard();
             });
         }
         
