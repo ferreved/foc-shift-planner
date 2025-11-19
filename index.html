@@ -5,19 +5,58 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FOC Admin - Create Schedule</title>
     <style>
-        body { margin: 0; padding: 0; background: #f5f5f5; font-family: Arial, sans-serif; }
-        .header { background: #232F3E; color: white; padding: 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .header-title { text-align: center; padding: 15px 0; margin: 0; font-size: 24px; color: #FF9900; }
-        .nav-tabs { display: flex; justify-content: center; background: #37475A; }
-        .nav-tab { padding: 12px 24px; color: white; text-decoration: none; border-bottom: 3px solid transparent; transition: all 0.3s; }
-        .nav-tab:hover { background: #4A5F7A; }
-        .nav-tab.active { background: #FF9900; color: #232F3E; border-bottom-color: #FF9900; }
-        .main-content { padding: 20px; }
-        .time-indicator { background: #ffebee !important; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.7; } 100% { opacity: 1; } }
-        .engineer-select { width: 80px; padding: 2px; border: 1px solid #ccc; border-radius: 3px; font-size: 10px; }
-        .status-online { color: #28a745; font-weight: bold; }
-        .status-offline { color: #dc3545; font-weight: bold; }
+        * { box-sizing: border-box; }
+        :root {
+            --bg-primary: #f5f7fa;
+            --bg-secondary: white;
+            --text-primary: #1d1d1f;
+            --text-secondary: #86868b;
+            --skg-color: #8e44ad;
+            --textables-color: #e67e22;
+            --break-color: #34c759;
+            --meeting-color: #ff3b30;
+            --border-color: rgba(0,0,0,0.1);
+        }
+        [data-theme="dark"] {
+            --bg-primary: #1c1c1e;
+            --bg-secondary: #2c2c2e;
+            --text-primary: #ffffff;
+            --text-secondary: #98989d;
+            --border-color: rgba(255,255,255,0.1);
+        }
+        body { margin: 0; padding: 0; background: var(--bg-primary); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: var(--text-primary); transition: all 0.3s ease; }
+        .header { background: rgba(255,255,255,0.8); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border-color); position: sticky; top: 0; z-index: 100; position: relative; }
+        [data-theme="dark"] .header { background: rgba(44,44,46,0.8); }
+        .theme-toggle { position: absolute; top: 20px; right: 20px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 12px; cursor: pointer; font-size: 14px; transition: all 0.2s ease; }
+        .theme-toggle:hover { transform: translateY(-1px); }
+        .header-title { text-align: center; padding: 20px 0; margin: 0; font-size: 28px; font-weight: 600; color: #007aff; }
+        .nav-tabs { display: flex; justify-content: center; background: transparent; padding: 0 20px 20px; }
+        .nav-tab { padding: 12px 24px; color: #86868b; text-decoration: none; border-radius: 20px; transition: all 0.3s ease; margin: 0 8px; font-weight: 500; }
+        .nav-tab:hover { background: rgba(0,122,255,0.1); color: #007aff; }
+        .nav-tab.active { background: #007aff; color: white; }
+        .main-content { padding: 20px; max-width: 1400px; margin: 0 auto; }
+        .time-indicator { background: rgba(255,149,0,0.1) !important; border-left: 4px solid #ff9500 !important; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.8; } 100% { opacity: 1; } }
+        .engineer-select { width: 80px; padding: 4px 8px; border: 1px solid var(--border-color); border-radius: 8px; font-size: 11px; background: var(--bg-secondary); color: var(--text-primary); }
+        .status-online { color: #34c759; font-weight: 600; }
+        .status-offline { color: #ff3b30; font-weight: 600; }
+        .card { background: var(--bg-secondary); border-radius: 16px; padding: 24px; margin: 16px 0; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid var(--border-color); }
+        .btn { padding: 12px 20px; border: none; border-radius: 12px; cursor: pointer; font-weight: 600; font-size: 14px; transition: all 0.2s ease; }
+        .btn-primary { background: #007aff; color: white; }
+        .btn-primary:hover { background: #0056cc; transform: translateY(-1px); }
+        .btn-success { background: #34c759; color: white; }
+        .btn-success:hover { background: #28a745; transform: translateY(-1px); }
+        .btn-danger { background: #ff3b30; color: white; }
+        .btn-danger:hover { background: #d70015; transform: translateY(-1px); }
+        .input-select { padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; }
+        .table-container { background: var(--bg-secondary); border-radius: 16px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+        .schedule-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        .schedule-table th, .schedule-table td { padding: 12px 8px; border: 1px solid var(--border-color); text-align: center; }
+        .schedule-table th { background: var(--bg-primary); font-weight: 600; color: var(--text-primary); }
+        .schedule-table .time-cell { background: var(--bg-primary); font-weight: 600; color: var(--text-primary); position: sticky; left: 0; z-index: 10; box-shadow: 2px 0 5px rgba(0,0,0,0.1); }
+        .live-status { background: linear-gradient(135deg, #007aff 0%, #5856d6 100%); color: white; border-radius: 20px; padding: 32px; text-align: center; box-shadow: 0 8px 32px rgba(0,122,255,0.3); }
+        .status-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 20px; }
+        .status-item { background: rgba(255,255,255,0.15); padding: 16px; border-radius: 12px; backdrop-filter: blur(10px); }
     </style>
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -25,6 +64,7 @@
 </head>
 <body>
     <div class="header">
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
         <h1 class="header-title">DUB Shift Planner</h1>
         <div class="nav-tabs">
             <a href="dashboard.html" class="nav-tab">Dashboard</a>
@@ -43,7 +83,7 @@
             { time: '13:00', label: '13:00' }, { time: '14:00', label: '14:00' }
         ];
         
-        let currentTeam = 'A', availableEngineers = [...TEAMS.A], extraEngineers = [], engineersOff = [], scheduleData = {}, shiftLead = '', stepUpLead = '', userInputs = {};
+        let currentTeam = '', availableEngineers = [], extraEngineers = [], engineersOff = [], scheduleData = {}, shiftLead = '', stepUpLead = '', userInputs = {};
         
         // Firebase Configuration
         const firebaseConfig = {
@@ -85,8 +125,8 @@
             scheduleRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 if (data && data.lastUpdated !== window.lastUpdate) {
-                    currentTeam = data.currentTeam || 'A';
-                    availableEngineers = data.availableEngineers || [...TEAMS.A];
+                    currentTeam = data.currentTeam || '';
+                    availableEngineers = data.availableEngineers || [];
                     extraEngineers = data.extraEngineers || [];
                     engineersOff = data.engineersOff || [];
                     scheduleData = data.scheduleData || {};
@@ -106,7 +146,12 @@
         }
         
         function updateDisplayFromSync() {
-            if (document.getElementById('team-selector')) document.getElementById('team-selector').value = currentTeam;
+            if (document.getElementById('team-selector')) {
+                document.getElementById('team-selector').value = currentTeam;
+                // Trigger team change to update dropdowns
+                updateAvailableEngineers();
+                updateLeaderSelectors();
+            }
             if (document.getElementById('shift-lead-display')) document.getElementById('shift-lead-display').textContent = shiftLead;
             if (document.getElementById('stepup-lead-display')) document.getElementById('stepup-lead-display').textContent = stepUpLead;
             updateExtraEngineersDisplay();
@@ -119,15 +164,15 @@
         function showLogin() {
             document.getElementById('app').innerHTML = `
                 <div style="display: flex; justify-content: center; align-items: center; height: calc(100vh - 120px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                    <div style="background: white; padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 400px; width: 100%;">
-                        <h2 style="text-align: center; color: #333; margin-bottom: 30px;">🔐 Admin Access</h2>
+                    <div style="background: var(--bg-secondary); padding: 40px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.1); max-width: 400px; width: 100%; border: 1px solid var(--border-color);">
+                        <h2 style="text-align: center; color: var(--text-primary); margin-bottom: 30px;">🔐 Admin Access</h2>
                         <div style="margin-bottom: 20px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Username:</label>
-                            <input type="text" id="username" placeholder="Enter username" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-primary);">Username:</label>
+                            <input type="text" id="username" placeholder="Enter username" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 16px; background: var(--bg-primary); color: var(--text-primary);">
                         </div>
                         <div style="margin-bottom: 30px;">
-                            <label style="display: block; margin-bottom: 5px; font-weight: bold;">Password:</label>
-                            <input type="password" id="password" placeholder="Enter password" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 16px;">
+                            <label style="display: block; margin-bottom: 5px; font-weight: bold; color: var(--text-primary);">Password:</label>
+                            <input type="password" id="password" placeholder="Enter password" style="width: 100%; padding: 12px; border: 1px solid var(--border-color); border-radius: 6px; font-size: 16px; background: var(--bg-primary); color: var(--text-primary);">
                         </div>
                         <button onclick="login()" style="width: 100%; padding: 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-size: 16px; cursor: pointer; margin-bottom: 15px;">Login</button>
                         <div style="text-align: center;">
@@ -144,7 +189,16 @@
             const validUsers = {
                 'admin': 'foc2024',
                 'shiftlead': 'lead123',
-                'manager': 'mgr456'
+                'manager': 'mgr456',
+                'ferreved': 'foc2024',
+                'xnevpaul': 'foc2024',
+                'kellyerd': 'foc2024',
+                'saudere': 'foc2024',
+                'wunderd': 'foc2024',
+                'criiliof': 'foc2024',
+                'shlakshy': 'foc2024',
+                'pjmaguir': 'foc2024',
+                'ssanthag': 'foc2024'
             };
             
             if (validUsers[username] === password) {
@@ -164,78 +218,110 @@
             setupRealtimeSync();
             document.getElementById('app').innerHTML = `
                 <div class="main-content">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h1 style="color: #232F3E; margin: 0;">Create Schedule</h1>
-                        <div>
-                            <a href="dashboard.html" target="_blank" style="background: #28a745; color: white; padding: 8px 16px; text-decoration: none; border-radius: 4px; margin-right: 10px;">📊 View Dashboard</a>
-                            <button onclick="logout()" style="background: #dc3545; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
+                        <h1 style="color: var(--text-primary); margin: 0; font-size: 32px; font-weight: 700;">Create Schedule</h1>
+                        <div style="display: flex; gap: 12px;">
+                            <a href="dashboard.html" target="_blank" class="btn btn-success" style="text-decoration: none;">📊 View Dashboard</a>
+                            <button onclick="logout()" class="btn btn-danger">Logout</button>
                         </div>
                     </div>
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <div style="display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
-                            <button id="new-schedule-btn" style="background: #ff4444; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">New Schedule</button>
-                            <button id="new-day-btn" style="background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">🌅 Start New Day</button>
-                            <div><label>Team: </label><select id="team-selector" style="padding: 8px; border-radius: 4px; border: 1px solid #ccc;">
-                                <option value="A">Team A</option><option value="B">Team B</option><option value="AB">Team A/B</option>
-                                <option value="AB_PROJECT_A">Team A/B Project for A</option><option value="AB_PROJECT_B">Team A/B Project for B</option>
+                    <div class="card">
+                        <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 20px;">
+                            <button id="reset-all-btn" class="btn btn-danger">Create New Schedule</button>
+                            <div style="display: flex; align-items: center; gap: 8px;"><label style="font-weight: 600;">Team:</label><select id="team-selector" class="input-select">
+                                <option value="">Select Team</option>
+                                <option value="A">Team A</option><option value="B">Team B</option>
+                                <option value="A_PROJECT_B">Team A Project for B</option><option value="B_PROJECT_A">Team B Project for A</option>
                             </select></div>
-                            <button id="auto-populate-btn" style="background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer;">Auto Populate</button>
-                            <div id="sync-status" class="${firebaseInitialized ? 'status-online' : 'status-offline'}">${firebaseInitialized ? '🔥 Live Sync ON' : '⚠️ Offline Mode'}</div>
-                            <button onclick="publishSchedule()" style="background: #28a745; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-left: 10px;">📤 Publish to Dashboard</button>
+                            <button id="auto-populate-btn" class="btn btn-primary">Auto Populate</button>
+
+                            <button onclick="publishSchedule()" class="btn btn-success">Publish to Dashboard</button>
                         </div>
-                        <div id="current-time" style="text-align: center; font-size: 18px; font-weight: bold; margin-top: 10px; color: #007bff;"></div>
-                        <div style="margin-top: 15px; display: flex; gap: 20px; flex-wrap: wrap;">
-                            <div><label>Extra Engineers: </label><select id="extra-engineer-select" style="margin-right: 10px;"><option value="">Select Engineer for Extra Hours</option></select>
-                            <button onclick="addExtraEngineer()" style="background: #28a745; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Add</button>
-                            <div id="extra-engineers-list" style="margin-top: 5px;"></div></div>
-                            <div><label>Engineers Off: </label><select id="engineer-off-select" style="margin-right: 10px;"><option value="">Select Engineer Off</option></select>
-                            <button onclick="addEngineerOff()" style="background: #dc3545; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Add</button>
-                            <div id="engineers-off-list" style="margin-top: 5px;"></div></div>
+                        <div id="current-time" style="text-align: center; font-size: 20px; font-weight: 600; color: var(--text-primary); background: rgba(0,122,255,0.1); padding: 12px; border-radius: 12px;"></div>
+                        
+                        <!-- Leadership Selection -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                            <div style="background: rgba(0,122,255,0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(0,122,255,0.2);">
+                                <h4 style="margin: 0 0 12px 0; color: #007aff; font-size: 16px; font-weight: 600;"> Shift Lead</h4>
+                                <select id="shift-lead-selector" class="input-select" style="width: 100%; margin-bottom: 8px;">
+                                    <option value="">Select Shift Lead</option>
+                                </select>
+                                <div id="shift-lead-display" style="font-size: 14px; font-weight: 600; color: #007aff; min-height: 20px;">Not Selected</div>
+                            </div>
+                            <div style="background: rgba(88,86,214,0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(88,86,214,0.2);">
+                                <h4 style="margin: 0 0 12px 0; color: #5856d6; font-size: 16px; font-weight: 600;">Step-up Lead</h4>
+                                <select id="stepup-lead-selector" class="input-select" style="width: 100%; margin-bottom: 8px;">
+                                    <option value="">Select Step-up Lead</option>
+                                </select>
+                                <div id="stepup-lead-display" style="font-size: 14px; font-weight: 600; color: #5856d6; min-height: 20px;">Not Selected</div>
+                            </div>
+                        </div>
+                        <!-- Engineer Management -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+                            <div style="background: rgba(52,199,89,0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(52,199,89,0.2);">
+                                <h4 style="margin: 0 0 12px 0; color: #34c759; font-size: 16px; font-weight: 600;">➕ Extra Engineers</h4>
+                                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                    <select id="extra-engineer-select" class="input-select" style="flex: 1;">
+                                        <option value="">Select Engineer for Extra Hours</option>
+                                    </select>
+                                    <button onclick="addExtraEngineer()" class="btn btn-success" style="padding: 8px 16px;">Add</button>
+                                </div>
+                                <div id="extra-engineers-list" style="min-height: 40px;"></div>
+                            </div>
+                            <div style="background: rgba(255,59,48,0.05); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,59,48,0.2);">
+                                <h4 style="margin: 0 0 12px 0; color: #ff3b30; font-size: 16px; font-weight: 600;">❌ Engineers Off</h4>
+                                <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                    <select id="engineer-off-select" class="input-select" style="flex: 1;">
+                                        <option value="">Select Engineer Off</option>
+                                    </select>
+                                    <button onclick="addEngineerOff()" class="btn btn-danger" style="padding: 8px 16px;">Add</button>
+                                </div>
+                                <div id="engineers-off-list" style="min-height: 40px;"></div>
+                            </div>
                         </div>
                     </div>
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); font-size: 12px;">
-                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #e3f2fd;">Shift Lead</td>
-                            <td colspan="12" style="padding: 8px; border: 1px solid #000; background: #e3f2fd;"><select id="shift-lead-selector" style="width: 200px; padding: 4px;"><option value="">Select Shift Lead</option></select><span id="shift-lead-display" style="margin-left: 10px; font-weight: bold;"></span></td></tr>
-                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #e3f2fd;">Step-up Lead</td>
-                            <td colspan="12" style="padding: 8px; border: 1px solid #000; background: #e3f2fd;"><select id="stepup-lead-selector" style="width: 200px; padding: 4px;"><option value="">Select Step-up Lead</option></select><span id="stepup-lead-display" style="margin-left: 10px; font-weight: bold;"></span></td></tr>
-                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">06:00 to 07:00</td><td colspan="12" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td></tr>
+                    <div class="table-container" style="overflow-x: auto;">
+                        <table class="schedule-table">
+
+                            <tr><th class="time-cell" style="background: rgba(255,149,0,0.1);">06:00 to 07:00</th><td colspan="12" style="background: rgba(255,149,0,0.1); font-weight: 600;">Project Hour</td></tr>
                             <tr><td colspan="13" style="padding: 4px; border: none;"></td></tr>
-                            <tr><td style="padding: 8px; border: 1px solid #000; background: #f0f0f0;"></td>
-                            <td colspan="6" style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Raiding SKG</td>
-                            <td colspan="6" style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Textables and FOC slack requests</td></tr>
-                            <tr><td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; font-weight: bold;">Primary</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 2</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 3</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 4</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 5</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 6</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 1</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 2</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 3</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 4</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 5</td>
-                            <td style="padding: 8px; border: 1px solid #000; background: #f0f0f0; text-align: center; font-weight: bold;">Eng 6</td></tr>
+                            <tr><th></th>
+                            <th id="skg-header" colspan="6" style="background: rgba(142,68,173,0.1); color: var(--skg-color);">🛰️ Raiding SKG</th>
+                            <th id="textables-header" colspan="6" style="background: rgba(230,126,34,0.1); color: var(--textables-color);">🛰️ Textables and FOC slack requests</th></tr>
+                            <tr id="eng-header"><th class="time-cell">Primary</th>
+                            <th style="background: rgba(142,68,173,0.1);">Eng 1</th>
+                            <th style="background: rgba(142,68,173,0.1);">Eng 2</th>
+                            <th style="background: rgba(142,68,173,0.1);">Eng 3</th>
+                            <th style="background: rgba(142,68,173,0.1);">Eng 4</th>
+                            <th style="background: rgba(142,68,173,0.1);">Eng 5</th>
+                            <th style="background: rgba(142,68,173,0.1);">Eng 6</th>
+                            <th style="background: rgba(230,126,34,0.1);">Eng 1</th>
+                            <th style="background: rgba(230,126,34,0.1);">Eng 2</th>
+                            <th style="background: rgba(230,126,34,0.1);">Eng 3</th>
+                            <th style="background: rgba(230,126,34,0.1);">Eng 4</th>
+                            <th style="background: rgba(230,126,34,0.1);">Eng 5</th>
+                            <th style="background: rgba(230,126,34,0.1);">Eng 6</th></tr>
                             <tbody id="schedule-tbody"></tbody>
-                            <tr><td style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd;">15:00 to 16:00</td><td colspan="12" style="padding: 8px; border: 1px solid #000; font-weight: bold; background: #fff3cd; text-align: center;">Project Hour</td></tr>
+                            <tr><th class="time-cell" style="background: rgba(255,149,0,0.1);">15:00 to 16:00</th><td colspan="12" style="background: rgba(255,149,0,0.1); font-weight: 600;">Project Hour</td></tr>
                         </table>
                     </div>
                     
                     <!-- User Inputs from Dashboard -->
-                    <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-top: 20px;">
-                        <h3 style="color: #232F3E; margin-top: 0;">📝 Live User Inputs from Dashboard</h3>
+                    <div class="card">
+                        <h3 style="color: var(--text-primary); margin-top: 0; font-size: 20px; font-weight: 600;">📝 Live User Inputs from Dashboard</h3>
                         <div id="user-inputs-display" style="font-size: 14px;"></div>
                     </div>
                     
-                    <div style="background: #232F3E; color: white; padding: 20px; border-radius: 8px; margin-top: 20px; font-family: 'Courier New', monospace;">
-                        <h2 style="color: #FF9900; text-align: center; margin-bottom: 20px; font-size: 24px;">FOC LIVE STATUS</h2>
-                        <div id="live-status-content" style="font-size: 18px; line-height: 1.6;"></div>
+                    <div class="live-status">
+                        <h2 style="margin-bottom: 24px; font-size: 28px; font-weight: 700;">FOC LIVE STATUS</h2>
+                        <div id="live-status-content" style="font-size: 16px; line-height: 1.6;"></div>
                     </div>
                 </div>`;
             attachEventListeners();
             initializeScheduleData();
             updateDashboard();
+            updateExtraEngineerDropdown();
+            updateEngineerOffDropdown();
             startTimeClock();
         }
         
@@ -252,7 +338,7 @@
             
             const inputs = Object.values(userInputs || {});
             if (inputs.length === 0) {
-                container.innerHTML = '<p style="color: #666; font-style: italic;">No user inputs yet.</p>';
+                container.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No user inputs yet.</p>';
                 return;
             }
             
@@ -266,7 +352,7 @@
             
             let html = '';
             Object.keys(groupedInputs).sort().forEach(timeSlot => {
-                html += `<div style="margin-bottom: 15px; padding: 10px; background: white; border-radius: 4px; border-left: 4px solid #007bff;">`;
+                html += `<div style="margin-bottom: 15px; padding: 10px; background: var(--bg-secondary); border-radius: 4px; border-left: 4px solid #007bff;">`;
                 html += `<strong style="color: #007bff;">${timeSlot}</strong><br>`;
                 groupedInputs[timeSlot].forEach(input => {
                     const icon = input.type === 'break' ? '☕' : '📅';
@@ -280,17 +366,9 @@
         }
 
         function attachEventListeners() {
-            document.getElementById('new-schedule-btn').addEventListener('click', () => {
-                if (confirm('Are you sure you want to start a new schedule? All current data will be lost.')) {
-                    initializeScheduleData();
-                    updateDashboard();
-                    syncToFirebase();
-                }
-            });
-            
-            document.getElementById('new-day-btn').addEventListener('click', () => {
-                if (confirm('Are you sure you want to start a new day? This will reset ALL data including breaks and meetings from dashboard.')) {
-                    startNewDay();
+            document.getElementById('reset-all-btn').addEventListener('click', () => {
+                if (confirm('Are you sure you want to reset all data? This will clear schedule, breaks, and meetings from dashboard.')) {
+                    resetAllData();
                 }
             });
             
@@ -298,6 +376,7 @@
                 currentTeam = e.target.value;
                 updateAvailableEngineers();
                 updateLeaderSelectors();
+                initializeScheduleData(); // Reinitialize with correct array sizes
                 updateDashboard();
                 syncToFirebase();
             });
@@ -327,7 +406,9 @@
             switch(currentTeam) {
                 case 'A': availableEngineers = [...TEAMS.A, ...extraEngineers]; break;
                 case 'B': availableEngineers = [...TEAMS.B, ...extraEngineers]; break;
-                default: availableEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers];
+                case 'A_PROJECT_B': availableEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers]; break;
+                case 'B_PROJECT_A': availableEngineers = [...TEAMS.A, ...TEAMS.B, ...extraEngineers]; break;
+                default: availableEngineers = [];
             }
             updateExtraEngineerDropdown();
             updateEngineerOffDropdown();
@@ -337,8 +418,20 @@
             const select = document.getElementById('extra-engineer-select');
             if (select) {
                 select.innerHTML = '<option value="">Select Engineer for Extra Hours</option>';
-                [...TEAMS.A, ...TEAMS.B].forEach(engineer => {
-                    select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
+                let availableForExtra = [];
+                
+                switch(currentTeam) {
+                    case 'A': availableForExtra = [...TEAMS.B]; break; // Team A can add Team B engineers
+                    case 'B': availableForExtra = [...TEAMS.A]; break; // Team B can add Team A engineers
+                    case 'A_PROJECT_B':
+                    case 'B_PROJECT_A': availableForExtra = [...TEAMS.A, ...TEAMS.B]; break; // Project teams can add all
+                    default: availableForExtra = []; // No team selected
+                }
+                
+                availableForExtra.forEach(engineer => {
+                    if (!extraEngineers.includes(engineer)) {
+                        select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
+                    }
                 });
             }
         }
@@ -347,8 +440,20 @@
             const select = document.getElementById('engineer-off-select');
             if (select) {
                 select.innerHTML = '<option value="">Select Engineer Off</option>';
-                availableEngineers.forEach(engineer => {
-                    select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
+                let availableForOff = [];
+                
+                switch(currentTeam) {
+                    case 'A': availableForOff = [...TEAMS.A, ...extraEngineers]; break; // Team A can mark Team A + extra as off
+                    case 'B': availableForOff = [...TEAMS.B, ...extraEngineers]; break; // Team B can mark Team B + extra as off
+                    case 'A_PROJECT_B':
+                    case 'B_PROJECT_A': availableForOff = [...TEAMS.A, ...TEAMS.B, ...extraEngineers]; break; // Project teams can mark all as off
+                    default: availableForOff = []; // No team selected
+                }
+                
+                availableForOff.forEach(engineer => {
+                    if (!engineersOff.includes(engineer)) {
+                        select.innerHTML += `<option value="${engineer}">${engineer}</option>`;
+                    }
                 });
             }
         }
@@ -373,9 +478,10 @@
             shiftLead = '';
             stepUpLead = '';
             TIME_SLOTS.forEach(slot => {
+                const isProjectTeam = currentTeam === 'A_PROJECT_B' || currentTeam === 'B_PROJECT_A';
                 scheduleData[slot.time] = {
-                    skg: ['', '', '', '', '', ''],
-                    textables: ['', '', '', '', '', '']
+                    skg: new Array(isProjectTeam ? 10 : 6).fill(''),
+                    textables: new Array(isProjectTeam ? 10 : 6).fill('')
                 };
             });
             // Clear shift lead displays
@@ -385,13 +491,13 @@
             if (document.getElementById('stepup-lead-selector')) document.getElementById('stepup-lead-selector').value = '';
         }
         
-        function startNewDay() {
+        function resetAllData() {
             // Reset all schedule data
             initializeScheduleData();
             
             // Reset team settings
-            currentTeam = 'A';
-            availableEngineers = [...TEAMS.A];
+            currentTeam = '';
+            availableEngineers = [];
             extraEngineers = [];
             engineersOff = [];
             
@@ -399,7 +505,7 @@
             userInputs = {};
             
             // Update displays
-            if (document.getElementById('team-selector')) document.getElementById('team-selector').value = 'A';
+            if (document.getElementById('team-selector')) document.getElementById('team-selector').value = '';
             updateExtraEngineersDisplay();
             updateEngineersOffDisplay();
             updateDashboard();
@@ -415,7 +521,7 @@
             // Force update displays
             updateLiveStatus();
             
-            alert('New day started! All data has been reset.');
+            alert('All data has been reset!');
         }
 
         function updateDashboard() {
@@ -427,14 +533,45 @@
             const tbody = document.getElementById('schedule-tbody');
             if (!tbody) return;
             
+            const isProjectTeam = currentTeam === 'A_PROJECT_B' || currentTeam === 'B_PROJECT_A';
+            const colCount = isProjectTeam ? 10 : 6;
+            
+            // Update table headers for project teams
+            const skgHeader = document.getElementById('skg-header');
+            const textablesHeader = document.getElementById('textables-header');
+            const engHeader = document.getElementById('eng-header');
+            
+            if (skgHeader && textablesHeader && engHeader) {
+                skgHeader.setAttribute('colspan', colCount);
+                textablesHeader.setAttribute('colspan', colCount);
+                
+                // Update engineer header row
+                let headerHTML = '<th class="time-cell">Primary</th>';
+                for (let i = 1; i <= colCount; i++) {
+                    headerHTML += `<th style="background: rgba(142,68,173,0.1);">Eng ${i}</th>`;
+                }
+                for (let i = 1; i <= colCount; i++) {
+                    headerHTML += `<th style="background: rgba(230,126,34,0.1);">Eng ${i}</th>`;
+                }
+                engHeader.innerHTML = headerHTML;
+            }
+            
             tbody.innerHTML = '';
             TIME_SLOTS.forEach(slot => {
-                const row = document.createElement('tr');
-                let html = `<td style="padding: 8px; border: 1px solid #000; font-weight: bold; text-align: center;">${slot.label}</td>`;
+                // Ensure schedule data has correct array size
+                if (!scheduleData[slot.time] || scheduleData[slot.time].skg.length !== colCount) {
+                    scheduleData[slot.time] = {
+                        skg: new Array(colCount).fill(''),
+                        textables: new Array(colCount).fill('')
+                    };
+                }
                 
-                // SKG columns (6)
-                for (let i = 0; i < 6; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;">
+                const row = document.createElement('tr');
+                let html = `<th class="time-cell">${slot.label}</th>`;
+                
+                // SKG columns
+                for (let i = 0; i < colCount; i++) {
+                    html += `<td style="background: rgba(142,68,173,0.05);">
                         <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'skg', ${i}, this.value)">
                             <option value="">-</option>
                             ${getAvailableEngineersForSlot(slot.time, 'skg', i).map(eng =>
@@ -444,9 +581,9 @@
                     </td>`;
                 }
                 
-                // Textables columns (6)
-                for (let i = 0; i < 6; i++) {
-                    html += `<td style="padding: 4px; border: 1px solid #000;">
+                // Textables columns
+                for (let i = 0; i < colCount; i++) {
+                    html += `<td style="background: rgba(230,126,34,0.05);">
                         <select class="engineer-select" onchange="updateScheduleData('${slot.time}', 'textables', ${i}, this.value)">
                             <option value="">-</option>
                             ${getAvailableEngineersForSlot(slot.time, 'textables', i).map(eng =>
@@ -485,52 +622,93 @@
         }
 
         function autoPopulateSchedule() {
+            // Get engineers not on break/meeting
+            const workingEngineers = availableEngineers.filter(eng => !engineersOff.includes(eng));
+            
             TIME_SLOTS.forEach((slot, timeIndex) => {
-                scheduleData[slot.time].skg = ['', '', '', '', '', ''];
-                scheduleData[slot.time].textables = ['', '', '', '', '', ''];
+                const isProjectTeam = currentTeam === 'A_PROJECT_B' || currentTeam === 'B_PROJECT_A';
+                const colCount = isProjectTeam ? 10 : 6;
+                scheduleData[slot.time].skg = new Array(colCount).fill('');
+                scheduleData[slot.time].textables = new Array(colCount).fill('');
                 
-                // Get engineers not on break/meeting for this time slot
+                // Remove engineers who have breaks/meetings for this specific time slot
                 const unavailableEngineers = getUnavailableEngineers(slot.time);
-                const workingEngineers = availableEngineers.filter(eng => 
-                    !engineersOff.includes(eng) && !unavailableEngineers.includes(eng)
-                );
+                let availableForThisSlot = workingEngineers.filter(eng => !unavailableEngineers.includes(eng));
                 
-                // SKG always gets more engineers when odd number
-                const skgSize = Math.ceil(workingEngineers.length / 2);
-                const textablesSize = Math.floor(workingEngineers.length / 2);
-                
-                const group1 = workingEngineers.slice(0, skgSize);  // Larger group (SKG priority)
-                const group2 = workingEngineers.slice(skgSize);     // Smaller group
-                
-                const skgGroup = timeIndex % 2 === 0 ? group1 : group2;
-                const textablesGroup = timeIndex % 2 === 0 ? group2 : group1;
-                
-                // For odd time slots, ensure SKG gets the larger group
-                let finalSkgGroup, finalTextablesGroup;
-                if (timeIndex % 2 === 0) {
-                    finalSkgGroup = group1;      // SKG gets larger group
-                    finalTextablesGroup = group2; // Textables gets smaller group
-                } else {
-                    finalSkgGroup = group2;      // SKG gets larger group
-                    finalTextablesGroup = group1; // Textables gets smaller group
+                // Apply project team restrictions
+                const slotHour = parseInt(slot.time.split(':')[0]);
+                if (currentTeam === 'A_PROJECT_B' && slotHour < 10) {
+                    // Use only Team A engineers until 9 AM
+                    availableForThisSlot = availableForThisSlot.filter(eng => TEAMS.A.includes(eng) || extraEngineers.includes(eng));
+                } else if (currentTeam === 'B_PROJECT_A' && slotHour < 10) {
+                    // Use only Team B engineers until 9 AM
+                    availableForThisSlot = availableForThisSlot.filter(eng => TEAMS.B.includes(eng) || extraEngineers.includes(eng));
                 }
+                // From 10 AM onwards, both project teams use all available engineers
                 
-                // Assign SKG (ensure no conflicts)
-                let skgAssigned = [];
-                finalSkgGroup.forEach((eng, i) => {
-                    if (i < 6 && !skgAssigned.includes(eng)) {
-                        scheduleData[slot.time].skg[i] = eng;
-                        skgAssigned.push(eng);
+                // Calculate SKG and Textables sizes - alternate which gets the extra engineer
+                const halfSize = Math.floor(availableForThisSlot.length / 2);
+                const hasOddNumber = availableForThisSlot.length % 2 === 1;
+                
+                // Alternate which team gets the extra engineer each hour
+                const skgGetsExtra = timeIndex % 2 === 0; // Even hours (0,2,4...) SKG gets extra, odd hours Textables gets extra
+                
+                const skgSize = hasOddNumber && skgGetsExtra ? halfSize + 1 : halfSize;
+                const textablesSize = hasOddNumber && !skgGetsExtra ? halfSize + 1 : halfSize;
+                
+                let skgEngineers = [];
+                let textablesEngineers = [];
+                
+                // Assign engineers alternating between SKG and Textables each hour
+                // First, handle engineers who must rotate (were in previous slot)
+                availableForThisSlot.forEach((eng) => {
+                    const prevSlotIndex = timeIndex - 1;
+                    let wasInSkg = false, wasInTextables = false;
+                    
+                    if (prevSlotIndex >= 0) {
+                        const prevSlot = TIME_SLOTS[prevSlotIndex];
+                        const prevData = scheduleData[prevSlot.time];
+                        wasInSkg = prevData.skg.includes(eng);
+                        wasInTextables = prevData.textables.includes(eng);
+                    }
+                    
+                    // Force rotation: if was in SKG, must go to Textables (if space)
+                    if (wasInSkg && textablesEngineers.length < textablesSize) {
+                        textablesEngineers.push(eng);
+                    }
+                    // Force rotation: if was in Textables, must go to SKG (if space)
+                    else if (wasInTextables && skgEngineers.length < skgSize) {
+                        skgEngineers.push(eng);
                     }
                 });
                 
-                // Assign Textables (ensure no conflicts with SKG)
-                let textablesAssigned = [];
-                finalTextablesGroup.forEach((eng, i) => {
-                    if (i < 6 && !skgAssigned.includes(eng) && !textablesAssigned.includes(eng)) {
-                        scheduleData[slot.time].textables[i] = eng;
-                        textablesAssigned.push(eng);
+                // Then fill remaining spots with unassigned engineers
+                availableForThisSlot.forEach((eng) => {
+                    if (!skgEngineers.includes(eng) && !textablesEngineers.includes(eng)) {
+                        // Fill remaining spots, alternating priority based on hour
+                        if (skgGetsExtra) {
+                            if (skgEngineers.length < skgSize) {
+                                skgEngineers.push(eng);
+                            } else if (textablesEngineers.length < textablesSize) {
+                                textablesEngineers.push(eng);
+                            }
+                        } else {
+                            if (textablesEngineers.length < textablesSize) {
+                                textablesEngineers.push(eng);
+                            } else if (skgEngineers.length < skgSize) {
+                                skgEngineers.push(eng);
+                            }
+                        }
                     }
+                });
+                
+                // Assign to schedule (max based on team type)
+                const maxCols = isProjectTeam ? 10 : 6;
+                skgEngineers.forEach((eng, i) => {
+                    if (i < maxCols) scheduleData[slot.time].skg[i] = eng;
+                });
+                textablesEngineers.forEach((eng, i) => {
+                    if (i < maxCols) scheduleData[slot.time].textables[i] = eng;
                 });
             });
             
@@ -559,12 +737,12 @@
             const statusContent = document.getElementById('live-status-content');
             if (!statusContent) return;
             
-            let statusHTML = `<div style="text-align: center; font-size: 20px; margin-bottom: 15px; color: #FF9900;">FOC ADMIN LIVE: TEAM ${currentTeam}</div>`;
+            let statusHTML = `<div style="font-size: 24px; margin-bottom: 20px; font-weight: 700;">FOC ADMIN LIVE: TEAM ${currentTeam}</div>`;
             
             // Add shift lead and step-up lead info
-            statusHTML += `<div style="text-align: center; margin-bottom: 15px;">`;
-            statusHTML += `<div style="color: #FFD700; font-size: 14px;">Shift Lead: ${shiftLead || 'Not Set'}</div>`;
-            statusHTML += `<div style="color: #FFD700; font-size: 14px;">Step-up Lead: ${stepUpLead || 'Not Set'}</div>`;
+            statusHTML += `<div style="margin-bottom: 20px;">`;
+            statusHTML += `<div style="font-size: 16px; margin-bottom: 8px; opacity: 0.9;">Shift Lead: ${shiftLead || 'Not Set'}</div>`;
+            statusHTML += `<div style="font-size: 16px; opacity: 0.9;">Step-up Lead: ${stepUpLead || 'Not Set'}</div>`;
             statusHTML += `</div>`;
             
             if (currentTimeSlot && scheduleData[currentTimeSlot]) {
@@ -580,18 +758,18 @@
                     input.timeSlot === currentTimeSlot && input.type === 'meeting'
                 ).length;
                 
-                statusHTML += `<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">`;
-                statusHTML += `<div>`;
-                statusHTML += `<div style="color: #4CAF50; font-size: 16px; margin-bottom: 10px;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
+                statusHTML += `<div class="status-grid">`;
+                statusHTML += `<div class="status-item">`;
+                statusHTML += `<div style="font-size: 18px; margin-bottom: 12px; font-weight: 600;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">☕ User Breaks: ${userBreaksCount} Engineers</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">📅 User Meetings: ${userMeetingsCount} Engineers</div>`;
                 statusHTML += `</div>`;
                 
-                statusHTML += `<div>`;
-                statusHTML += `<div style="color: #2196F3; font-size: 16px; margin-bottom: 10px;">👥 DASHBOARD STATS</div>`;
-                statusHTML += `<div style="font-size: 14px;">`;
+                statusHTML += `<div class="status-item">`;
+                statusHTML += `<div style="font-size: 18px; margin-bottom: 12px; font-weight: 600;">👥 DASHBOARD STATS</div>`;
+                statusHTML += `<div style="font-size: 14px; line-height: 1.5;">`;
                 statusHTML += `Total Active: ${skgCount + textablesCount} Engineers<br>`;
                 statusHTML += `Total Out of OPS: ${userMeetingsCount + userBreaksCount} Engineers<br>`;
                 statusHTML += `Dashboard Users: ${Object.keys(userInputs || {}).length} Inputs`;
@@ -599,7 +777,7 @@
                 statusHTML += `</div>`;
                 statusHTML += `</div>`;
             } else {
-                statusHTML += `<div style="text-align: center; color: #FFB74D; font-size: 16px;">Outside operational hours (7:00-15:00)</div>`;
+                statusHTML += `<div style="font-size: 18px; opacity: 0.8;">Outside operational hours (7:00-15:00)</div>`;
             }
             
             statusContent.innerHTML = statusHTML;
@@ -630,7 +808,7 @@
                     const rows = document.querySelectorAll('#schedule-tbody tr');
                     rows.forEach(row => {
                         const timeCell = row.cells[0];
-                        if (timeCell && timeCell.textContent.trim() === currentTimeSlot) {
+                        if (timeCell && timeCell.textContent.trim().includes(currentHour + ':00')) {
                             row.classList.add('time-indicator');
                         }
                     });
@@ -705,8 +883,8 @@
             const container = document.getElementById('extra-engineers-list');
             if (container) {
                 container.innerHTML = extraEngineers.map(eng => 
-                    `<span style="margin: 2px; padding: 4px 8px; background: #e3f2fd; border-radius: 4px; display: inline-block;">
-                        ${eng} <button onclick="removeExtraEngineer('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button>
+                    `<span style="margin: 4px; padding: 8px 12px; background: rgba(0,122,255,0.1); border-radius: 12px; display: inline-block; font-size: 14px; color: var(--text-primary);">
+                        ${eng} <button onclick="removeExtraEngineer('${eng}')" style="background: #ff3b30; color: white; border: none; border-radius: 6px; margin-left: 8px; cursor: pointer; padding: 2px 6px;">×</button>
                     </span>`
                 ).join('');
             }
@@ -716,8 +894,8 @@
             const container = document.getElementById('engineers-off-list');
             if (container) {
                 container.innerHTML = engineersOff.map(eng => 
-                    `<span style="margin: 2px; padding: 4px 8px; background: #ffebee; border-radius: 4px; display: inline-block;">
-                        ${eng} <button onclick="removeEngineerOff('${eng}')" style="background: #f44336; color: white; border: none; border-radius: 2px; margin-left: 4px; cursor: pointer;">×</button>
+                    `<span style="margin: 4px; padding: 8px 12px; background: rgba(255,59,48,0.1); border-radius: 12px; display: inline-block; font-size: 14px; color: var(--text-primary);">
+                        ${eng} <button onclick="removeEngineerOff('${eng}')" style="background: #ff3b30; color: white; border: none; border-radius: 6px; margin-left: 8px; cursor: pointer; padding: 2px 6px;">×</button>
                     </span>`
                 ).join('');
             }
@@ -728,8 +906,26 @@
             showLogin();
         }
         
+        // Theme toggle functionality
+        let isDarkMode = localStorage.getItem('darkMode') === 'true';
+        
+        function toggleTheme() {
+            isDarkMode = !isDarkMode;
+            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            document.querySelector('.theme-toggle').textContent = isDarkMode ? '☀️' : '🌙';
+            localStorage.setItem('darkMode', isDarkMode);
+        }
+        
+        function initTheme() {
+            document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
+            if (document.querySelector('.theme-toggle')) {
+                document.querySelector('.theme-toggle').textContent = isDarkMode ? '☀️' : '🌙';
+            }
+        }
+        
         // Initialize when page loads
         document.addEventListener('DOMContentLoaded', () => {
+            initTheme();
             if (isAuthenticated) {
                 initDashboard();
             } else {
