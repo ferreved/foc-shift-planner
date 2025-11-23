@@ -378,6 +378,23 @@
             syncToFirebase(); // Sync edit history to Firebase immediately
         }
         
+        const USER_COLORS = {
+            'admin': '#007aff',
+            'ferreved': '#FF6B6B',
+            'xnevpaul': '#4ECDC4',
+            'kellyerd': '#45B7D1',
+            'saudere': '#96CEB4',
+            'wunderd': '#FFEAA7',
+            'criiliof': '#DDA0DD',
+            'shlakshy': '#98D8C8',
+            'pjmaguir': '#F7DC6F',
+            'ssanthag': '#BB8FCE'
+        };
+        
+        function getUserColor(username) {
+            return USER_COLORS[username] || '#6c757d';
+        }
+        
         function updateEditHistoryDisplay() {
             const container = document.getElementById('edit-history-display');
             if (!container) return;
@@ -387,12 +404,15 @@
                 return;
             }
             
-            const historyHTML = editHistory.map(entry => `
-                <div style="margin-bottom: 10px; padding: 8px; background: var(--bg-primary); border-radius: 6px; border-left: 3px solid #007aff;">
-                    <div style="font-weight: 600; color: #007aff; font-size: 12px;">${entry.user} - ${entry.timestamp}</div>
-                    <div style="font-size: 13px; margin-top: 4px;">${entry.details}</div>
-                </div>
-            `).join('');
+            const historyHTML = editHistory.map(entry => {
+                const userColor = getUserColor(entry.user);
+                return `
+                    <div style="margin-bottom: 10px; padding: 8px; background: var(--bg-primary); border-radius: 6px; border-left: 3px solid ${userColor};">
+                        <div style="font-weight: 600; color: ${userColor}; font-size: 12px;">${entry.user} - ${entry.timestamp}</div>
+                        <div style="font-size: 13px; margin-top: 4px;">${entry.details}</div>
+                    </div>
+                `;
+            }).join('');
             
             container.innerHTML = historyHTML;
         }
