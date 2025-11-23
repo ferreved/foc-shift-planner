@@ -877,7 +877,9 @@
                 statusHTML += `<div style="font-size: 18px; opacity: 0.8;">Outside operational hours (7:00-15:00)</div>`;
             }
             
+            console.log('Setting status HTML:', statusHTML);
             statusContent.innerHTML = statusHTML;
+            console.log('Status content updated successfully');
         }
         
         function updateAnalogClock(region, hours, minutes) {
