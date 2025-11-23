@@ -143,8 +143,19 @@
             scheduleRef = database.ref('schedule');
             breaksRef = database.ref('userInputs');
             firebaseInitialized = true;
+            console.log('Firebase initialized successfully');
+            
+            // Test connection
+            database.ref('.info/connected').on('value', (snapshot) => {
+                const connected = snapshot.val();
+                console.log('Firebase connection status:', connected ? 'Connected' : 'Disconnected');
+                updateConnectionStatus(connected);
+            });
         } catch (error) {
+            console.error('Firebase initialization failed:', error);
             firebaseInitialized = false;
+            // Load sample data for testing
+            loadSampleData();
         }
         
         const TIME_SLOTS = [
@@ -239,30 +250,84 @@
         }
         
         function setupRealtimeSync() {
-            if (!firebaseInitialized) return;
+            if (!firebaseInitialized) {
+                console.error('Firebase not initialized - running in offline mode');
+                return;
+            }
+            
+            console.log('Setting up Firebase listeners...');
             
             // Listen to schedule changes from admin
             scheduleRef.on('value', (snapshot) => {
                 const data = snapshot.val();
-                console.log('Dashboard received data:', data);
+                console.log('Dashboard received schedule data:', data);
                 if (data) {
                     scheduleData = data.scheduleData || {};
                     currentTeam = data.currentTeam || 'A';
                     shiftLead = data.shiftLead || '';
                     stepUpLead = data.stepUpLead || '';
-                    console.log('Updated dashboard with:', { currentTeam, shiftLead, stepUpLead });
+                    console.log('Updated dashboard with:', { currentTeam, shiftLead, stepUpLead, scheduleData });
                     updateDashboard();
+                } else {
+                    console.warn('No schedule data received from Firebase');
                 }
+            }, (error) => {
+                console.error('Firebase schedule listener error:', error);
             });
             
             // Listen to user inputs (breaks/meetings)
             breaksRef.on('value', (snapshot) => {
                 const data = snapshot.val();
+                console.log('Dashboard received user inputs:', data);
                 if (data) {
                     userInputs = data;
                     updateDashboard();
+                } else {
+                    console.log('No user inputs data');
+                    userInputs = {};
                 }
+            }, (error) => {
+                console.error('Firebase user inputs listener error:', error);
             });
+        }
+        
+        function updateConnectionStatus(connected) {
+            const syncStatus = document.getElementById('sync-status');
+            if (syncStatus) {
+                if (connected && firebaseInitialized) {
+                    syncStatus.innerHTML = '🟢 Live Sync ON';
+                    syncStatus.className = 'status-online';
+                    syncStatus.style.background = 'rgba(52,199,89,0.1)';
+                } else {
+                    syncStatus.innerHTML = '⚠️ Connection Lost';
+                    syncStatus.className = 'status-offline';
+                    syncStatus.style.background = 'rgba(255,59,48,0.1)';
+                }
+            }
+        }
+        
+        function loadSampleData() {
+            console.log('Loading sample data for testing...');
+            // Sample data for testing when Firebase is not available
+            scheduleData = {
+                '09:00': {
+                    skg: ['ferreved', 'ddunwood'],
+                    textables: ['azjimene', 'xnevpaul'],
+                    breaks: [],
+                    outOfOps: []
+                },
+                '10:00': {
+                    skg: ['mwanyali', 'andrwmn'],
+                    textables: ['mcdlvega', 'criiliof'],
+                    breaks: [],
+                    outOfOps: []
+                }
+            };
+            currentTeam = 'A';
+            shiftLead = 'ferreved';
+            stepUpLead = 'ddunwood';
+            userInputs = {};
+            updateDashboard();
         }
         
         function initDashboard() {
@@ -274,6 +339,9 @@
                     <div class="scoreboard">
                         <div class="scoreboard-title">SHIFT LIVE STATUS</div>
                         <div id="live-status-content"></div>
+                        <button onclick="manualRefresh()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-top: 16px; font-size: 14px;">
+                            🔄 Manual Refresh
+                        </button>
                     </div>
                     
                     <!-- Current Time -->
@@ -530,7 +598,39 @@
             }
         }
         
+        function manualRefresh() {
+            console.log('Manual refresh triggered');
+            if (firebaseInitialized) {
+                // Force refresh from Firebase
+                scheduleRef.once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    console.log('Manual refresh - schedule data:', data);
+                    if (data) {
+                        scheduleData = data.scheduleData || {};
+                        currentTeam = data.currentTeam || 'A';
+                        shiftLead = data.shiftLead || '';
+                        stepUpLead = data.stepUpLead || '';
+                        updateDashboard();
+                    }
+                }).catch(error => {
+                    console.error('Manual refresh failed:', error);
+                });
+                
+                breaksRef.once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    console.log('Manual refresh - user inputs:', data);
+                    userInputs = data || {};
+                    updateDashboard();
+                }).catch(error => {
+                    console.error('Manual refresh user inputs failed:', error);
+                });
+            } else {
+                loadSampleData();
+            }
+        }
+        
         function updateDashboard() {
+            console.log('Updating dashboard with data:', { scheduleData, currentTeam, shiftLead, stepUpLead });
             updateScheduleGrid();
             updateLiveStatus();
             updateEngineerDropdowns(); // Update engineer dropdowns based on schedule
@@ -696,7 +796,12 @@
             }
             
             const statusContent = document.getElementById('live-status-content');
-            if (!statusContent) return;
+            if (!statusContent) {
+                console.error('live-status-content element not found');
+                return;
+            }
+            
+            console.log('Updating live status:', { currentTimeSlot, currentTeam, shiftLead, stepUpLead, scheduleData });
             
             let statusHTML = `<div style="font-size: 24px; margin-bottom: 20px; font-weight: 700;">TEAM ${currentTeam} - ${currentTimeSlot || 'OFF HOURS'}</div>`;
             
@@ -704,6 +809,11 @@
             statusHTML += `<div style="font-size: 16px; margin-bottom: 20px; opacity: 0.9;">`;
             statusHTML += `Shift Lead: ${shiftLead || 'Not Set'} | Step-up Lead: ${stepUpLead || 'Not Set'}`;
             statusHTML += `</div>`;
+            
+            // Debug info
+            if (!firebaseInitialized) {
+                statusHTML += `<div style="font-size: 14px; color: #ff3b30; margin-bottom: 20px;">⚠️ Firebase not connected - showing offline data</div>`;
+            }
             
             if (currentTimeSlot && scheduleData[currentTimeSlot]) {
                 const data = scheduleData[currentTimeSlot];
