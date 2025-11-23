@@ -761,11 +761,13 @@
                             <div class="section-title" style="color: var(--skg-color);">🛰️ SKG Team</div>
                             <div class="engineer-list">
                                 ${(data.skg || []).filter(eng => eng).map(eng => {
-                                    const userBreak = userBreaks.find(b => b.alias === eng);
-                                    const userMeeting = userMeetings.find(m => m.alias === eng);
+                                    // Check if engineer is currently out of ops
+                                    const activeOutOfOps = getCurrentActiveOutOfOps();
+                                    const currentlyOut = activeOutOfOps.find(input => input.alias === eng);
                                     let icon = '';
-                                    if (userBreak) icon = ` ☕${userBreak.duration.replace(' minutes', 'm')}`;
-                                    if (userMeeting) icon = ` 📅${userMeeting.duration.replace(' minutes', 'm')}`;
+                                    if (currentlyOut) {
+                                        icon = currentlyOut.type === 'break' ? ' ☕' : ' 📅';
+                                    }
                                     const engineerColor = getEngineerColor(eng);
                                     return `<span class="engineer-tag" style="background: ${engineerColor}20; border: 1px solid ${engineerColor}; color: var(--text-primary);">${eng}${icon}</span>`;
                                 }).join('') || '<span style="color: var(--text-secondary); font-style: italic;">No assignments</span>'}
@@ -778,11 +780,13 @@
                             <div class="section-title" style="color: var(--textables-color);">📋 Textables Team</div>
                             <div class="engineer-list">
                                 ${(data.textables || []).filter(eng => eng).map(eng => {
-                                    const userBreak = userBreaks.find(b => b.alias === eng);
-                                    const userMeeting = userMeetings.find(m => m.alias === eng);
+                                    // Check if engineer is currently out of ops
+                                    const activeOutOfOps = getCurrentActiveOutOfOps();
+                                    const currentlyOut = activeOutOfOps.find(input => input.alias === eng);
                                     let icon = '';
-                                    if (userBreak) icon = ` ☕${userBreak.duration.replace(' minutes', 'm')}`;
-                                    if (userMeeting) icon = ` 📅${userMeeting.duration.replace(' minutes', 'm')}`;
+                                    if (currentlyOut) {
+                                        icon = currentlyOut.type === 'break' ? ' ☕' : ' 📅';
+                                    }
                                     const engineerColor = getEngineerColor(eng);
                                     return `<span class="engineer-tag" style="background: ${engineerColor}20; border: 1px solid ${engineerColor}; color: var(--text-primary);">${eng}${icon}</span>`;
                                 }).join('') || '<span style="color: var(--text-secondary); font-style: italic;">No assignments</span>'}
@@ -834,15 +838,23 @@
             
             const data = scheduleData[currentTimeSlot];
             if (data) {
-                const skgCount = (data.skg || []).filter(eng => eng !== '').length;
-                const textablesCount = (data.textables || []).filter(eng => eng !== '').length;
+                // Get engineers currently out of ops
+                const activeOutOfOps = getCurrentActiveOutOfOps();
+                const outOfOpsEngineers = activeOutOfOps.map(input => input.alias);
                 
-                const skgTags = (data.skg || []).filter(eng => eng !== '').map(eng => {
+                // Filter out engineers who are currently out of ops
+                const activeSkgEngineers = (data.skg || []).filter(eng => eng !== '' && !outOfOpsEngineers.includes(eng));
+                const activeTextablesEngineers = (data.textables || []).filter(eng => eng !== '' && !outOfOpsEngineers.includes(eng));
+                
+                const skgCount = activeSkgEngineers.length;
+                const textablesCount = activeTextablesEngineers.length;
+                
+                const skgTags = activeSkgEngineers.map(eng => {
                     const engineerColor = getEngineerColor(eng);
                     return `<span style="background: ${engineerColor}; color: white; padding: 4px 8px; border-radius: 8px; font-size: 11px; margin: 2px; display: inline-block; font-weight: 500;">${eng}</span>`;
                 }).join('');
                 
-                const textablesTags = (data.textables || []).filter(eng => eng !== '').map(eng => {
+                const textablesTags = activeTextablesEngineers.map(eng => {
                     const engineerColor = getEngineerColor(eng);
                     return `<span style="background: ${engineerColor}; color: white; padding: 4px 8px; border-radius: 8px; font-size: 11px; margin: 2px; display: inline-block; font-weight: 500;">${eng}</span>`;
                 }).join('');
