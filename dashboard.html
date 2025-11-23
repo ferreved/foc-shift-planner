@@ -339,9 +339,7 @@
                     <div class="scoreboard">
                         <div class="scoreboard-title">SHIFT LIVE STATUS</div>
                         <div id="live-status-content"></div>
-                        <button onclick="manualRefresh()" style="background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 16px; border-radius: 8px; cursor: pointer; margin-top: 16px; font-size: 14px;">
-                            🔄 Manual Refresh
-                        </button>
+
                     </div>
                     
                     <!-- Current Time -->
@@ -810,12 +808,11 @@
             statusHTML += `Shift Lead: ${shiftLead || 'Not Set'} | Step-up Lead: ${stepUpLead || 'Not Set'}`;
             statusHTML += `</div>`;
             
-            // Debug info
-            if (!firebaseInitialized) {
-                statusHTML += `<div style="font-size: 14px; color: #ff3b30; margin-bottom: 20px;">⚠️ Firebase not connected - showing offline data</div>`;
-            }
+
             
-            if (currentTimeSlot && scheduleData[currentTimeSlot]) {
+            if (currentTimeSlot) {
+                const data = scheduleData[currentTimeSlot];
+                if (data && (data.skg || data.textables)) {
                 const data = scheduleData[currentTimeSlot];
                 const skgCount = data.skg.filter(eng => eng !== '').length;
                 const textablesCount = data.textables.filter(eng => eng !== '').length;
@@ -873,6 +870,9 @@
                             <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; line-height: 1.3;">${outOfOpsNames || 'None'}</div>
                         </div>
                     </div>`;
+                } else {
+                    statusHTML += `<div style="font-size: 18px; opacity: 0.8;">No schedule data available for ${currentTimeSlot}</div>`;
+                }
             } else {
                 statusHTML += `<div style="font-size: 18px; opacity: 0.8;">Outside operational hours (7:00-15:00)</div>`;
             }
