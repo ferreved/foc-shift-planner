@@ -224,6 +224,51 @@
             return hours * 60 + minutes;
         }
         
+        function getCurrentActiveOutOfOps() {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            return Object.values(userInputs || {}).filter(input => {
+                if (input.type !== 'break' && input.type !== 'meeting') return false;
+                
+                const startMinutes = timeToMinutes(input.timeSlot);
+                const durationMinutes = parseInt(input.duration.replace(' minutes', ''));
+                const endMinutes = startMinutes + durationMinutes;
+                
+                return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+            });
+        }
+        
+        function getRemainingTime(input) {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const startMinutes = timeToMinutes(input.timeSlot);
+            const durationMinutes = parseInt(input.duration.replace(' minutes', ''));
+            const endMinutes = startMinutes + durationMinutes;
+            
+            const remainingMinutes = endMinutes - currentMinutes;
+            if (remainingMinutes <= 0) return '0m';
+            
+            const hours = Math.floor(remainingMinutes / 60);
+            const mins = remainingMinutes % 60;
+            
+            if (hours > 0) {
+                return `${hours}h ${mins}m`;
+            }
+            return `${mins}m`;
+        }
+        
+        function getEndTime(input) {
+            const startMinutes = timeToMinutes(input.timeSlot);
+            const durationMinutes = parseInt(input.duration.replace(' minutes', ''));
+            const endMinutes = startMinutes + durationMinutes;
+            
+            const endHours = Math.floor(endMinutes / 60);
+            const endMins = endMinutes % 60;
+            
+            return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+        }
+        
         function checkTimeOverlap(engineer, startTime, durationMinutes) {
             const startMinutes = timeToMinutes(startTime);
             const endMinutes = startMinutes + durationMinutes;
@@ -574,25 +619,23 @@
         function scrollToCurrentTimeSlot() {
             const now = new Date();
             const currentHour = now.getHours();
+            const currentTimeSlot = `${currentHour.toString().padStart(2, '0')}:00`;
             
-            if (currentHour >= 7 && currentHour < 15) {
-                const currentTimeSlot = `${currentHour}:00`;
-                const currentCard = document.querySelector(`[data-time="${currentTimeSlot}"]`);
-                const grid = document.getElementById('schedule-grid');
+            const currentCard = document.querySelector(`[data-time="${currentTimeSlot}"]`);
+            const grid = document.getElementById('schedule-grid');
+            
+            if (currentCard && grid) {
+                const cardLeft = currentCard.offsetLeft;
+                const cardWidth = currentCard.offsetWidth;
+                const gridWidth = grid.offsetWidth;
                 
-                if (currentCard && grid) {
-                    const cardLeft = currentCard.offsetLeft;
-                    const cardWidth = currentCard.offsetWidth;
-                    const gridWidth = grid.offsetWidth;
-                    
-                    // Center the current card in view
-                    const scrollPosition = cardLeft - (gridWidth / 2) + (cardWidth / 2);
-                    
-                    grid.scrollTo({
-                        left: Math.max(0, scrollPosition),
-                        behavior: 'smooth'
-                    });
-                }
+                // Center the current card in view
+                const scrollPosition = cardLeft - (gridWidth / 2) + (cardWidth / 2);
+                
+                grid.scrollTo({
+                    left: Math.max(0, scrollPosition),
+                    behavior: 'smooth'
+                });
             }
         }
         
@@ -673,11 +716,7 @@
             
             const now = new Date();
             const currentHour = now.getHours();
-            let currentTimeSlot = '';
-            
-            if (currentHour >= 7 && currentHour < 15) {
-                currentTimeSlot = `${currentHour}:00`;
-            }
+            const currentTimeSlot = `${currentHour.toString().padStart(2, '0')}:00`;
             
             let gridHTML = '';
             
@@ -755,9 +794,8 @@
                             <div class="engineer-list">
                                 ${(data.breaks || []).filter(eng => eng).map(eng => `<span class="break-tag" style="color: var(--text-primary);">☕ ${eng}</span>`).join('')}
                                 ${userBreaks.map(brk => {
-                                    const startTime = brk.timeSlot;
-                                    const duration = brk.duration;
-                                    return `<span class="break-tag" style="color: var(--text-primary);">☕ ${brk.alias} ${startTime} (${duration})</span>`;
+                                    const endTime = getEndTime(brk);
+                                    return `<span class="break-tag" style="color: var(--text-primary);">☕ ${brk.alias} ${brk.timeSlot} - ${endTime}<br><span style="font-size: 10px; opacity: 0.8;">Break (${brk.duration})</span></span>`;
                                 }).join('')}
                                 ${((data.breaks || []).filter(eng => eng).length === 0 && userBreaks.length === 0) ? '<span style="color: var(--text-secondary); font-style: italic;">No breaks</span>' : ''}
                             </div>
@@ -768,9 +806,8 @@
                             <div class="engineer-list">
                                 ${(data.outOfOps || []).filter(item => item && item.engineer).map(item => `<span class="meeting-tag" style="color: var(--text-primary);">📅 ${item.engineer} - ${item.reason}</span>`).join('')}
                                 ${userMeetings.map(mtg => {
-                                    const startTime = mtg.timeSlot;
-                                    const duration = mtg.duration;
-                                    return `<span class="meeting-tag" style="color: var(--text-primary);">📅 ${mtg.alias} ${startTime} - ${mtg.reason} (${duration})</span>`;
+                                    const endTime = getEndTime(mtg);
+                                    return `<span class="meeting-tag" style="color: var(--text-primary);">📅 ${mtg.alias} ${mtg.timeSlot} - ${endTime}<br><span style="font-size: 10px; opacity: 0.8;">${mtg.reason} (${mtg.duration})</span></span>`;
                                 }).join('')}
                                 ${((data.outOfOps || []).filter(item => item && item.engineer).length === 0 && userMeetings.length === 0) ? '<span style="color: var(--text-secondary); font-style: italic;">No meetings</span>' : ''}
                             </div>
@@ -787,99 +824,83 @@
         function updateLiveStatus() {
             const now = new Date();
             const currentHour = now.getHours();
-            let currentTimeSlot = '';
-            
-            if (currentHour >= 7 && currentHour < 15) {
-                currentTimeSlot = `${currentHour}:00`;
-            }
+            const currentTimeSlot = `${currentHour.toString().padStart(2, '0')}:00`;
             
             const statusContent = document.getElementById('live-status-content');
-            if (!statusContent) {
-                console.error('live-status-content element not found');
-                return;
-            }
+            if (!statusContent) return;
             
-            console.log('Updating live status:', { currentTimeSlot, currentTeam, shiftLead, stepUpLead, scheduleData });
+            let statusHTML = `<div style="font-size: 24px; margin-bottom: 20px; font-weight: 700;">TEAM ${currentTeam} - ${currentTimeSlot}</div>`;
+            statusHTML += `<div style="font-size: 16px; margin-bottom: 20px; opacity: 0.9;">Shift Lead: ${shiftLead || 'Not Set'} | Step-up Lead: ${stepUpLead || 'Not Set'}</div>`;
             
-            let statusHTML = `<div style="font-size: 24px; margin-bottom: 20px; font-weight: 700;">TEAM ${currentTeam} - ${currentTimeSlot || 'OFF HOURS'}</div>`;
-            
-            // Display shift lead and step-up lead
-            statusHTML += `<div style="font-size: 16px; margin-bottom: 20px; opacity: 0.9;">`;
-            statusHTML += `Shift Lead: ${shiftLead || 'Not Set'} | Step-up Lead: ${stepUpLead || 'Not Set'}`;
-            statusHTML += `</div>`;
-            
-
-            
-            if (currentTimeSlot) {
-                const data = scheduleData[currentTimeSlot];
-                if (data && (data.skg || data.textables)) {
-                const data = scheduleData[currentTimeSlot];
-                const skgCount = data.skg.filter(eng => eng !== '').length;
-                const textablesCount = data.textables.filter(eng => eng !== '').length;
-                const outOfOpsCount = data.outOfOps ? data.outOfOps.filter(item => item.engineer !== '').length : 0;
+            const data = scheduleData[currentTimeSlot];
+            if (data) {
+                const skgCount = (data.skg || []).filter(eng => eng !== '').length;
+                const textablesCount = (data.textables || []).filter(eng => eng !== '').length;
                 
-                // Count user inputs active during current slot (including those that span multiple slots)
-                function isActiveInCurrentSlot(input, currentSlot) {
-                    const inputStartMinutes = timeToMinutes(input.timeSlot);
-                    const inputDurationMinutes = parseInt(input.duration.replace(' minutes', ''));
-                    const inputEndMinutes = inputStartMinutes + inputDurationMinutes;
-                    
-                    const slotStartMinutes = timeToMinutes(currentSlot);
-                    const slotEndMinutes = slotStartMinutes + 60;
-                    
-                    return (inputStartMinutes < slotEndMinutes) && (inputEndMinutes > slotStartMinutes);
-                }
+                const skgTags = (data.skg || []).filter(eng => eng !== '').map(eng => {
+                    const engineerColor = getEngineerColor(eng);
+                    return `<span style="background: ${engineerColor}; color: white; padding: 4px 8px; border-radius: 8px; font-size: 11px; margin: 2px; display: inline-block; font-weight: 500;">${eng}</span>`;
+                }).join('');
                 
-                const userBreaksCount = Object.values(userInputs || {}).filter(input => 
-                    input.type === 'break' && isActiveInCurrentSlot(input, currentTimeSlot)
-                ).length;
-                const userMeetingsCount = Object.values(userInputs || {}).filter(input => 
-                    input.type === 'meeting' && isActiveInCurrentSlot(input, currentTimeSlot)
-                ).length;
-                
-                const totalActive = skgCount + textablesCount;
-                const totalOut = outOfOpsCount + userMeetingsCount + userBreaksCount;
-                
-                // Get engineer names for each category
-                const skgNames = data.skg.filter(eng => eng !== '').join(', ');
-                const textablesNames = data.textables.filter(eng => eng !== '').join(', ');
-                const outOfOpsNames = Object.values(userInputs || {}).filter(input => 
-                    (input.type === 'break' || input.type === 'meeting') && isActiveInCurrentSlot(input, currentTimeSlot)
-                ).map(input => `${input.alias} (${input.type === 'break' ? '☕' : '📅'}${input.timeSlot}-${input.duration.replace(' minutes', 'm')})`).join(', ');
+                const textablesTags = (data.textables || []).filter(eng => eng !== '').map(eng => {
+                    const engineerColor = getEngineerColor(eng);
+                    return `<span style="background: ${engineerColor}; color: white; padding: 4px 8px; border-radius: 8px; font-size: 11px; margin: 2px; display: inline-block; font-weight: 500;">${eng}</span>`;
+                }).join('');
                 
                 statusHTML += `
-                    <div class="scoreboard-stats">
+                    <div class="scoreboard-stats" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
                         <div class="stat-box">
                             <div class="stat-number">${skgCount}</div>
                             <div class="stat-label">SKG ENGINEERS</div>
-                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; line-height: 1.3;">${skgNames || 'None'}</div>
+                            <div style="font-size: 12px; margin-top: 8px; line-height: 1.4;">${skgTags || '<span style="opacity: 0.8;">None</span>'}</div>
                         </div>
                         <div class="stat-box">
                             <div class="stat-number">${textablesCount}</div>
                             <div class="stat-label">TEXTABLES ENGINEERS</div>
-                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; line-height: 1.3;">${textablesNames || 'None'}</div>
+                            <div style="font-size: 12px; margin-top: 8px; line-height: 1.4;">${textablesTags || '<span style="opacity: 0.8;">None</span>'}</div>
                         </div>
                         <div class="stat-box">
-                            <div class="stat-number">${totalActive}</div>
-                            <div class="stat-label">TOTAL ACTIVE</div>
-                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8;">SKG + Textables</div>
-                        </div>
-                        <div class="stat-box">
-                            <div class="stat-number">${totalOut}</div>
+                            <div class="stat-number" id="out-of-ops-count">0</div>
                             <div class="stat-label">OUT OF OPS</div>
-                            <div style="font-size: 12px; margin-top: 8px; opacity: 0.8; line-height: 1.3;">${outOfOpsNames || 'None'}</div>
+                            <div style="font-size: 11px; margin-top: 8px; line-height: 1.4;" id="out-of-ops-list">None</div>
                         </div>
                     </div>`;
-                } else {
-                    statusHTML += `<div style="font-size: 18px; opacity: 0.8;">No schedule data available for ${currentTimeSlot}</div>`;
-                }
             } else {
-                statusHTML += `<div style="font-size: 18px; opacity: 0.8;">Outside operational hours (7:00-15:00)</div>`;
+                statusHTML += `<div style="font-size: 18px; opacity: 0.8;">No schedule data for ${currentTimeSlot}</div>`;
             }
             
-            console.log('Setting status HTML:', statusHTML);
             statusContent.innerHTML = statusHTML;
-            console.log('Status content updated successfully');
+            
+            // Update out-of-ops with live data
+            updateOutOfOpsLive();
+        }
+        
+        function updateOutOfOpsLive() {
+            const activeOutOfOps = getCurrentActiveOutOfOps();
+            const countElement = document.getElementById('out-of-ops-count');
+            const listElement = document.getElementById('out-of-ops-list');
+            
+            if (countElement && listElement) {
+                countElement.textContent = activeOutOfOps.length;
+                
+                if (activeOutOfOps.length === 0) {
+                    listElement.innerHTML = '<span style="opacity: 0.8;">None</span>';
+                } else {
+                    const outOfOpsTags = activeOutOfOps.map(input => {
+                        const icon = input.type === 'break' ? '☕' : '📅';
+                        const endTime = getEndTime(input);
+                        const remaining = getRemainingTime(input);
+                        const reason = input.type === 'break' ? 'Break' : input.reason;
+                        
+                        return `<div style="margin: 2px 0; padding: 3px; background: rgba(255,255,255,0.1); border-radius: 4px;">
+                            ${icon} ${input.alias} ${input.timeSlot} - ${endTime}<br>
+                            <span style="opacity: 0.8; font-size: 10px;">${reason} - Remaining: ${remaining}</span>
+                        </div>`;
+                    }).join('');
+                    
+                    listElement.innerHTML = outOfOpsTags;
+                }
+            }
         }
         
         function updateAnalogClock(region, hours, minutes) {
@@ -970,6 +991,7 @@
             updateTime();
             setInterval(updateTime, 1000);
             setInterval(updateDashboard, 30000); // Refresh every 30 seconds
+            setInterval(updateOutOfOpsLive, 1000); // Update out-of-ops every second for live countdown
         }
         
         // Theme toggle functionality
