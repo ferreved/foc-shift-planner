@@ -123,17 +123,82 @@
         // Real-time sync functions
         function syncToFirebase() {
             if (!firebaseInitialized) return;
-            const data = { currentTeam, availableEngineers, extraEngineers, engineersOff, scheduleData, shiftLead, stepUpLead, lastUpdated: Date.now() };
-            console.log('Syncing to Firebase:', data);
+            const data = { 
+                currentTeam, 
+                availableEngineers, 
+                extraEngineers, 
+                engineersOff, 
+                scheduleData, 
+                shiftLead, 
+                stepUpLead, 
+                lastUpdated: Date.now() 
+            };
+            console.log('Admin syncing to Firebase:', data);
             scheduleRef.set(data).then(() => {
-                console.log('Sync successful');
-            }).catch(err => console.log('Sync failed:', err));
+                console.log('Admin sync successful');
+                window.lastUpdate = data.lastUpdated;
+            }).catch(err => {
+                console.error('Admin sync failed:', err);
+            });
+        }
+        
+        function loadExistingData() {
+            return new Promise((resolve) => {
+                if (!firebaseInitialized) {
+                    console.log('Firebase not initialized, using empty data');
+                    initializeScheduleData();
+                    resolve();
+                    return;
+                }
+                
+                console.log('Loading existing data from Firebase...');
+                
+                // Load schedule data
+                scheduleRef.once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        console.log('Loaded existing schedule data:', data);
+                        currentTeam = data.currentTeam || '';
+                        availableEngineers = data.availableEngineers || [];
+                        extraEngineers = data.extraEngineers || [];
+                        engineersOff = data.engineersOff || [];
+                        scheduleData = data.scheduleData || {};
+                        shiftLead = data.shiftLead || '';
+                        stepUpLead = data.stepUpLead || '';
+                        window.lastUpdate = data.lastUpdated;
+                        
+                        // If no schedule data exists, initialize empty
+                        if (Object.keys(scheduleData).length === 0) {
+                            initializeScheduleData();
+                        }
+                    } else {
+                        console.log('No existing schedule data, initializing empty');
+                        initializeScheduleData();
+                    }
+                    
+                    // Load user inputs
+                    return userInputsRef.once('value');
+                }).then((snapshot) => {
+                    const data = snapshot.val();
+                    userInputs = data || {};
+                    console.log('Loaded existing user inputs:', userInputs);
+                    resolve();
+                }).catch((error) => {
+                    console.error('Error loading existing data:', error);
+                    initializeScheduleData();
+                    resolve();
+                });
+            });
         }
         
         function setupRealtimeSync() {
             if (!firebaseInitialized) return;
+            
+            console.log('Admin: Setting up Firebase listeners...');
+            
             scheduleRef.on('value', (snapshot) => {
                 const data = snapshot.val();
+                console.log('Admin received schedule data:', data);
                 if (data && data.lastUpdated !== window.lastUpdate) {
                     currentTeam = data.currentTeam || '';
                     availableEngineers = data.availableEngineers || [];
@@ -144,14 +209,17 @@
                     stepUpLead = data.stepUpLead || '';
                     window.lastUpdate = data.lastUpdated;
                     updateDisplayFromSync();
+                    updateLiveStatus(); // Force live status update
                 }
             });
             
             // Listen to user inputs from dashboard
             userInputsRef.on('value', (snapshot) => {
                 const data = snapshot.val();
+                console.log('Admin received user inputs:', data);
                 userInputs = data || {};
                 updateUserInputsDisplay();
+                updateLiveStatus(); // Update live status when user inputs change
             });
         }
         
@@ -328,7 +396,10 @@
                 return;
             }
             
-            setupRealtimeSync();
+            // Load existing data from Firebase first, then setup real-time sync
+            loadExistingData().then(() => {
+                setupRealtimeSync();
+            });
             document.getElementById('app').innerHTML = `
                 <div class="main-content">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 32px;">
@@ -437,7 +508,6 @@
                     </div>
                 </div>`;
             attachEventListeners();
-            initializeScheduleData();
             updateDashboard();
             updateExtraEngineerDropdown();
             updateEngineerOffDropdown();
@@ -492,9 +562,7 @@
 
         function attachEventListeners() {
             document.getElementById('reset-all-btn').addEventListener('click', () => {
-                if (confirm('Are you sure you want to reset all data? This will clear schedule, breaks, and meetings from dashboard.')) {
-                    resetAllData();
-                }
+                resetAllData();
             });
             
             document.getElementById('team-selector').addEventListener('change', (e) => {
@@ -630,6 +698,10 @@
         }
         
         function resetAllData() {
+            if (!confirm('Are you sure you want to create a new schedule? This will clear ALL existing data including schedule, breaks, meetings, and edit history.')) {
+                return;
+            }
+            
             // Reset all schedule data
             initializeScheduleData();
             
@@ -657,7 +729,7 @@
                 userInputsRef.remove().catch(err => console.log('Clear user inputs failed:', err));
             }
             
-            // Sync everything to Firebase
+            // Sync everything to Firebase (this will clear all data in Firebase)
             syncToFirebase();
             
             // Force update displays
@@ -665,7 +737,7 @@
             
             addToEditHistory('Reset', 'Created new schedule - all data cleared');
             
-            alert('All data has been reset!');
+            alert('New schedule created! All previous data has been cleared.');
         }
 
         function updateDashboard() {
@@ -868,20 +940,18 @@
             });
             return unavailable;
         }
+        
+
 
         function updateLiveStatus() {
             const now = new Date();
             const currentHour = now.getHours();
-            let currentTimeSlot = '';
-            
-            if (currentHour >= 7 && currentHour < 15) {
-                currentTimeSlot = `${currentHour}:00`;
-            }
+            const currentTimeSlot = `${currentHour.toString().padStart(2, '0')}:00`;
             
             const statusContent = document.getElementById('live-status-content');
             if (!statusContent) return;
             
-            let statusHTML = `<div style="font-size: 24px; margin-bottom: 20px; font-weight: 700;">FOC ADMIN LIVE: TEAM ${currentTeam}</div>`;
+            let statusHTML = `<div style="font-size: 24px; margin-bottom: 20px; font-weight: 700;">FOC ADMIN LIVE: TEAM ${currentTeam || 'NOT SET'}</div>`;
             
             // Add shift lead and step-up lead info
             statusHTML += `<div style="margin-bottom: 20px;">`;
@@ -889,26 +959,23 @@
             statusHTML += `<div style="font-size: 16px; opacity: 0.9;">Step-up Lead: ${stepUpLead || 'Not Set'}</div>`;
             statusHTML += `</div>`;
             
-            if (currentTimeSlot && scheduleData[currentTimeSlot]) {
+            if (currentHour >= 7 && currentHour < 15 && scheduleData[currentTimeSlot]) {
                 const data = scheduleData[currentTimeSlot];
-                const skgCount = data.skg.filter(eng => eng !== '').length;
-                const textablesCount = data.textables.filter(eng => eng !== '').length;
+                const skgCount = (data.skg || []).filter(eng => eng !== '').length;
+                const textablesCount = (data.textables || []).filter(eng => eng !== '').length;
                 
-                // Count user inputs for current slot
-                const userBreaksCount = Object.values(userInputs || {}).filter(input => 
-                    input.timeSlot === currentTimeSlot && input.type === 'break'
-                ).length;
-                const userMeetingsCount = Object.values(userInputs || {}).filter(input => 
-                    input.timeSlot === currentTimeSlot && input.type === 'meeting'
-                ).length;
+                // Get currently active out-of-ops (breaks/meetings that are happening right now)
+                const activeOutOfOps = getCurrentActiveOutOfOps();
+                const userBreaksCount = activeOutOfOps.filter(input => input.type === 'break').length;
+                const userMeetingsCount = activeOutOfOps.filter(input => input.type === 'meeting').length;
                 
                 statusHTML += `<div class="status-grid">`;
                 statusHTML += `<div class="status-item">`;
                 statusHTML += `<div style="font-size: 18px; margin-bottom: 12px; font-weight: 600;">📊 CURRENT SLOT: ${currentTimeSlot}</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">🔍 SKG: ${skgCount} Engineers</div>`;
                 statusHTML += `<div style="margin-bottom: 8px;">📝 Textables: ${textablesCount} Engineers</div>`;
-                statusHTML += `<div style="margin-bottom: 8px;">☕ User Breaks: ${userBreaksCount} Engineers</div>`;
-                statusHTML += `<div style="margin-bottom: 8px;">📅 User Meetings: ${userMeetingsCount} Engineers</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">☕ Active Breaks: ${userBreaksCount} Engineers</div>`;
+                statusHTML += `<div style="margin-bottom: 8px;">📅 Active Meetings: ${userMeetingsCount} Engineers</div>`;
                 statusHTML += `</div>`;
                 
                 statusHTML += `<div class="status-item">`;
@@ -921,10 +988,30 @@
                 statusHTML += `</div>`;
                 statusHTML += `</div>`;
             } else {
-                statusHTML += `<div style="font-size: 18px; opacity: 0.8;">Outside operational hours (7:00-15:00)</div>`;
+                statusHTML += `<div style="font-size: 18px; opacity: 0.8;">Outside operational hours (7:00-15:00) or no schedule data</div>`;
             }
             
             statusContent.innerHTML = statusHTML;
+        }
+        
+        function getCurrentActiveOutOfOps() {
+            const now = new Date();
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            
+            return Object.values(userInputs || {}).filter(input => {
+                if (input.type !== 'break' && input.type !== 'meeting') return false;
+                
+                const startMinutes = timeToMinutes(input.timeSlot);
+                const durationMinutes = parseInt(input.duration.replace(' minutes', ''));
+                const endMinutes = startMinutes + durationMinutes;
+                
+                return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+            });
+        }
+        
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
         }
 
         function startTimeClock() {
@@ -963,7 +1050,7 @@
             
             updateTime();
             setInterval(updateTime, 1000);
-            setInterval(updateLiveStatus, 60000);
+            setInterval(updateLiveStatus, 5000); // Update live status every 5 seconds
         }
 
         // Global functions
