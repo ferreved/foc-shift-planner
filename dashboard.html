@@ -117,6 +117,10 @@
             </div>
         </div>
         <div class="header-right">
+            <div id="viewer-count" style="display: flex; align-items: center; gap: 8px; margin-right: 12px; font-size: 14px; color: var(--text-secondary);">
+                <span>👁️</span>
+                <span id="viewer-number">0</span>
+            </div>
             <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
         </div>
     </div>
@@ -151,6 +155,9 @@
                 console.log('Firebase connection status:', connected ? 'Connected' : 'Disconnected');
                 updateConnectionStatus(connected);
             });
+            
+            // Setup viewer tracking
+            setupViewerTracking();
         } catch (error) {
             console.error('Firebase initialization failed:', error);
             firebaseInitialized = false;
@@ -373,6 +380,32 @@
             stepUpLead = 'ddunwood';
             userInputs = {};
             updateDashboard();
+        }
+        
+        function setupViewerTracking() {
+            if (!firebaseInitialized) return;
+            
+            const viewersRef = database.ref('viewers/dashboard');
+            const myViewerRef = viewersRef.push();
+            
+            // Set myself as online
+            myViewerRef.set({
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                page: 'dashboard'
+            });
+            
+            // Remove myself when I disconnect
+            myViewerRef.onDisconnect().remove();
+            
+            // Listen for viewer count changes
+            viewersRef.on('value', (snapshot) => {
+                const viewers = snapshot.val();
+                const count = viewers ? Object.keys(viewers).length : 0;
+                const viewerElement = document.getElementById('viewer-number');
+                if (viewerElement) {
+                    viewerElement.textContent = count;
+                }
+            });
         }
         
         function initDashboard() {
