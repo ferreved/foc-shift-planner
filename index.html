@@ -156,7 +156,7 @@
                 // Load schedule data
                 scheduleRef.once('value').then((snapshot) => {
                     const data = snapshot.val();
-                    if (data) {
+                    if (data && data.scheduleData && Object.keys(data.scheduleData).length > 0) {
                         console.log('Loaded existing schedule data:', data);
                         currentTeam = data.currentTeam || '';
                         availableEngineers = data.availableEngineers || [];
@@ -167,12 +167,9 @@
                         stepUpLead = data.stepUpLead || '';
                         window.lastUpdate = data.lastUpdated;
                         
-                        // If no schedule data exists, initialize empty
-                        if (Object.keys(scheduleData).length === 0) {
-                            initializeScheduleData();
-                        }
+                        console.log('Data loaded successfully - Team:', currentTeam, 'Schedule slots:', Object.keys(scheduleData).length);
                     } else {
-                        console.log('No existing schedule data, initializing empty');
+                        console.log('No existing schedule data found, initializing empty');
                         initializeScheduleData();
                     }
                     
@@ -181,7 +178,7 @@
                 }).then((snapshot) => {
                     const data = snapshot.val();
                     userInputs = data || {};
-                    console.log('Loaded existing user inputs:', userInputs);
+                    console.log('Loaded existing user inputs:', Object.keys(userInputs).length, 'entries');
                     resolve();
                 }).catch((error) => {
                     console.error('Error loading existing data:', error);
@@ -224,20 +221,37 @@
         }
         
         function updateDisplayFromSync() {
+            console.log('Updating display from sync - Team:', currentTeam, 'Lead:', shiftLead);
+            
             if (document.getElementById('team-selector')) {
                 document.getElementById('team-selector').value = currentTeam;
-                // Trigger team change to update dropdowns
                 updateAvailableEngineers();
                 updateLeaderSelectors();
             }
-            if (document.getElementById('shift-lead-display')) document.getElementById('shift-lead-display').textContent = shiftLead;
-            if (document.getElementById('stepup-lead-display')) document.getElementById('stepup-lead-display').textContent = stepUpLead;
+            
+            // Update leadership displays
+            if (document.getElementById('shift-lead-display')) {
+                document.getElementById('shift-lead-display').textContent = shiftLead || 'Not Set';
+            }
+            if (document.getElementById('stepup-lead-display')) {
+                document.getElementById('stepup-lead-display').textContent = stepUpLead || 'Not Set';
+            }
+            
+            // Update leadership selectors
+            if (document.getElementById('shift-lead-selector')) {
+                document.getElementById('shift-lead-selector').value = shiftLead;
+            }
+            if (document.getElementById('stepup-lead-selector')) {
+                document.getElementById('stepup-lead-selector').value = stepUpLead;
+            }
+            
             updateExtraEngineersDisplay();
             updateEngineersOffDisplay();
             updateScheduleTable();
+            updateLiveStatus();
         }
         
-        let isAuthenticated = false;
+        let isAuthenticated = localStorage.getItem('isAuthenticated') === 'true';
         
         function showLogin() {
             document.getElementById('app').innerHTML = `
@@ -282,13 +296,15 @@
             if (validUsers[username] === password) {
                 isAuthenticated = true;
                 currentUsername = username;
+                localStorage.setItem('isAuthenticated', 'true');
+                localStorage.setItem('currentUsername', username);
                 initDashboard();
             } else {
                 alert('Invalid credentials. Please try again.');
             }
         }
         
-        let currentUsername = '';
+        let currentUsername = localStorage.getItem('currentUsername') || '';
         let myViewerRef = null;
         let editHistory = [];
         
@@ -1170,6 +1186,8 @@
             
             isAuthenticated = false;
             currentUsername = '';
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('currentUsername');
             showLogin();
         }
         
