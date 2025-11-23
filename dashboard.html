@@ -761,12 +761,14 @@
                             <div class="section-title" style="color: var(--skg-color);">🛰️ SKG Team</div>
                             <div class="engineer-list">
                                 ${(data.skg || []).filter(eng => eng).map(eng => {
-                                    // Check if engineer is currently out of ops
-                                    const activeOutOfOps = getCurrentActiveOutOfOps();
-                                    const currentlyOut = activeOutOfOps.find(input => input.alias === eng);
+                                    // Only show emoji in current time slot card
                                     let icon = '';
-                                    if (currentlyOut) {
-                                        icon = currentlyOut.type === 'break' ? ' ☕' : ' 📅';
+                                    if (isCurrentTime) {
+                                        const activeOutOfOps = getCurrentActiveOutOfOps();
+                                        const currentlyOut = activeOutOfOps.find(input => input.alias === eng);
+                                        if (currentlyOut) {
+                                            icon = currentlyOut.type === 'break' ? ' ☕' : ' 📅';
+                                        }
                                     }
                                     const engineerColor = getEngineerColor(eng);
                                     return `<span class="engineer-tag" style="background: ${engineerColor}20; border: 1px solid ${engineerColor}; color: var(--text-primary);">${eng}${icon}</span>`;
@@ -780,12 +782,14 @@
                             <div class="section-title" style="color: var(--textables-color);">📋 Textables Team</div>
                             <div class="engineer-list">
                                 ${(data.textables || []).filter(eng => eng).map(eng => {
-                                    // Check if engineer is currently out of ops
-                                    const activeOutOfOps = getCurrentActiveOutOfOps();
-                                    const currentlyOut = activeOutOfOps.find(input => input.alias === eng);
+                                    // Only show emoji in current time slot card
                                     let icon = '';
-                                    if (currentlyOut) {
-                                        icon = currentlyOut.type === 'break' ? ' ☕' : ' 📅';
+                                    if (isCurrentTime) {
+                                        const activeOutOfOps = getCurrentActiveOutOfOps();
+                                        const currentlyOut = activeOutOfOps.find(input => input.alias === eng);
+                                        if (currentlyOut) {
+                                            icon = currentlyOut.type === 'break' ? ' ☕' : ' 📅';
+                                        }
                                     }
                                     const engineerColor = getEngineerColor(eng);
                                     return `<span class="engineer-tag" style="background: ${engineerColor}20; border: 1px solid ${engineerColor}; color: var(--text-primary);">${eng}${icon}</span>`;
