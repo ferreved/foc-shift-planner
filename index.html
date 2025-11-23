@@ -64,7 +64,14 @@
 </head>
 <body>
     <div class="header">
-        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+            <div id="viewer-count" style="display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-secondary); position: relative; cursor: pointer;">
+                <span>👁️</span>
+                <span id="viewer-number">0</span>
+                <div id="viewer-tooltip" style="display: none; position: absolute; top: 100%; left: 0; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 1000; min-width: 150px; font-size: 12px;"></div>
+            </div>
+        </div>
         <h1 class="header-title">DUB Shift Planner</h1>
         <div class="nav-tabs">
             <a href="dashboard.html" class="nav-tab">Dashboard</a>
@@ -106,6 +113,9 @@
             scheduleRef = database.ref('schedule');
             userInputsRef = database.ref('userInputs');
             firebaseInitialized = true;
+            
+            // Setup viewer tracking
+            setupViewerTracking();
         } catch (error) {
             firebaseInitialized = false;
         }
@@ -203,9 +213,112 @@
             
             if (validUsers[username] === password) {
                 isAuthenticated = true;
+                currentUsername = username;
                 initDashboard();
             } else {
                 alert('Invalid credentials. Please try again.');
+            }
+        }
+        
+        let currentUsername = '';
+        let myViewerRef = null;
+        let editHistory = [];
+        
+        function addToEditHistory(action, details) {
+            const timestamp = new Date().toLocaleTimeString('en-GB', {
+                hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit'
+            });
+            
+            editHistory.unshift({
+                user: currentUsername,
+                action: action,
+                details: details,
+                timestamp: timestamp
+            });
+            
+            // Keep only last 20 entries
+            if (editHistory.length > 20) {
+                editHistory = editHistory.slice(0, 20);
+            }
+            
+            updateEditHistoryDisplay();
+        }
+        
+        function updateEditHistoryDisplay() {
+            const container = document.getElementById('edit-history-display');
+            if (!container) return;
+            
+            if (editHistory.length === 0) {
+                container.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">No edits yet.</p>';
+                return;
+            }
+            
+            const historyHTML = editHistory.map(entry => `
+                <div style="margin-bottom: 10px; padding: 8px; background: var(--bg-primary); border-radius: 6px; border-left: 3px solid #007aff;">
+                    <div style="font-weight: 600; color: #007aff; font-size: 12px;">${entry.user} - ${entry.timestamp}</div>
+                    <div style="font-size: 13px; margin-top: 4px;">${entry.details}</div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = historyHTML;
+        }
+        
+        function setupViewerTracking() {
+            if (!firebaseInitialized || !currentUsername) return;
+            
+            const viewersRef = database.ref('viewers/admin');
+            myViewerRef = viewersRef.push();
+            
+            // Set myself as online with username
+            myViewerRef.set({
+                username: currentUsername,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                page: 'admin',
+                lastActivity: firebase.database.ServerValue.TIMESTAMP
+            });
+            
+            // Remove myself when I disconnect
+            myViewerRef.onDisconnect().remove();
+            
+            // Listen for viewer changes
+            viewersRef.on('value', (snapshot) => {
+                const viewers = snapshot.val();
+                const count = viewers ? Object.keys(viewers).length : 0;
+                const viewerElement = document.getElementById('viewer-number');
+                const tooltipElement = document.getElementById('viewer-tooltip');
+                
+                if (viewerElement) {
+                    viewerElement.textContent = count;
+                }
+                
+                if (tooltipElement && viewers) {
+                    const userList = Object.values(viewers)
+                        .map(viewer => `• ${viewer.username}`)
+                        .join('<br>');
+                    tooltipElement.innerHTML = `<strong>Active Editors:</strong><br>${userList}`;
+                }
+            });
+            
+            // Setup hover events
+            const viewerCount = document.getElementById('viewer-count');
+            const tooltip = document.getElementById('viewer-tooltip');
+            
+            if (viewerCount && tooltip) {
+                viewerCount.addEventListener('mouseenter', () => {
+                    tooltip.style.display = 'block';
+                });
+                
+                viewerCount.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+            }
+        }
+        
+        function updateUserActivity() {
+            if (myViewerRef && firebaseInitialized) {
+                myViewerRef.update({
+                    lastActivity: firebase.database.ServerValue.TIMESTAMP
+                });
             }
         }
         
@@ -306,10 +419,16 @@
                         </table>
                     </div>
                     
-                    <!-- User Inputs from Dashboard -->
-                    <div class="card">
-                        <h3 style="color: var(--text-primary); margin-top: 0; font-size: 20px; font-weight: 600;">📝 Live User Inputs from Dashboard</h3>
-                        <div id="user-inputs-display" style="font-size: 14px;"></div>
+                    <!-- User Inputs and Edit History -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div class="card">
+                            <h3 style="color: var(--text-primary); margin-top: 0; font-size: 20px; font-weight: 600;">📝 Live User Inputs from Dashboard</h3>
+                            <div id="user-inputs-display" style="font-size: 14px;"></div>
+                        </div>
+                        <div class="card">
+                            <h3 style="color: var(--text-primary); margin-top: 0; font-size: 20px; font-weight: 600;">📋 Edit History</h3>
+                            <div id="edit-history-display" style="font-size: 14px; max-height: 300px; overflow-y: auto;"></div>
+                        </div>
                     </div>
                     
                     <div class="live-status">
@@ -326,7 +445,10 @@
         }
         
         function publishSchedule() {
+            updateUserActivity(); // Track user activity
+            
             if (confirm('Publish current schedule to dashboard? This will make it visible to all users.')) {
+                addToEditHistory('Publish', `Published schedule for Team ${currentTeam} to dashboard`);
                 syncToFirebase();
                 alert('Schedule published successfully! ✅');
             }
@@ -385,21 +507,34 @@
             });
             
             document.getElementById('shift-lead-selector').addEventListener('change', (e) => {
+                const oldLead = shiftLead;
                 shiftLead = e.target.value;
                 document.getElementById('shift-lead-display').textContent = shiftLead;
+                
+                if (shiftLead && shiftLead !== oldLead) {
+                    addToEditHistory('Leadership Change', `Set Shift Lead to ${shiftLead}`);
+                }
+                
                 console.log('Shift lead changed to:', shiftLead);
                 syncToFirebase();
             });
             
             document.getElementById('stepup-lead-selector').addEventListener('change', (e) => {
+                const oldLead = stepUpLead;
                 stepUpLead = e.target.value;
                 document.getElementById('stepup-lead-display').textContent = stepUpLead;
+                
+                if (stepUpLead && stepUpLead !== oldLead) {
+                    addToEditHistory('Leadership Change', `Set Step-up Lead to ${stepUpLead}`);
+                }
+                
                 console.log('Step-up lead changed to:', stepUpLead);
                 syncToFirebase();
             });
             
             document.getElementById('auto-populate-btn').addEventListener('click', () => {
                 autoPopulateSchedule();
+                addToEditHistory('Auto Populate', `Auto-populated schedule for Team ${currentTeam}`);
                 updateLiveStatus();
                 syncToFirebase();
             });
@@ -507,6 +642,10 @@
             // Clear user inputs (breaks and meetings from dashboard)
             userInputs = {};
             
+            // Clear edit history
+            editHistory = [];
+            updateEditHistoryDisplay();
+            
             // Update displays
             if (document.getElementById('team-selector')) document.getElementById('team-selector').value = '';
             updateExtraEngineersDisplay();
@@ -523,6 +662,8 @@
             
             // Force update displays
             updateLiveStatus();
+            
+            addToEditHistory('Reset', 'Created new schedule - all data cleared');
             
             alert('All data has been reset!');
         }
@@ -827,6 +968,8 @@
 
         // Global functions
         window.updateScheduleData = function(time, type, index, value) {
+            updateUserActivity(); // Track user activity
+            
             if (type.includes('skg') && value && isEngineerAssigned(time, value, 'textables')) {
                 alert('Engineers cannot be assigned to both SKG and Textables.');
                 event.target.value = '';
@@ -837,12 +980,24 @@
                 event.target.value = '';
                 return;
             }
+            
+            const oldValue = scheduleData[time][type][index];
             scheduleData[time][type][index] = value;
+            
+            // Add to edit history
+            if (value && value !== oldValue) {
+                addToEditHistory('Schedule Update', `Assigned ${value} to ${type.toUpperCase()} at ${time}`);
+            } else if (!value && oldValue) {
+                addToEditHistory('Schedule Update', `Removed ${oldValue} from ${type.toUpperCase()} at ${time}`);
+            }
+            
             updateLiveStatus();
             syncToFirebase();
         };
 
         window.addExtraEngineer = function() {
+            updateUserActivity(); // Track user activity
+            
             const select = document.getElementById('extra-engineer-select');
             const engineer = select.value;
             if (engineer && !extraEngineers.includes(engineer)) {
@@ -920,7 +1075,14 @@
         }
         
         function logout() {
+            // Remove from viewer tracking
+            if (myViewerRef) {
+                myViewerRef.remove();
+                myViewerRef = null;
+            }
+            
             isAuthenticated = false;
+            currentUsername = '';
             showLogin();
         }
         
