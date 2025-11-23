@@ -107,22 +107,32 @@
         let database, scheduleRef, userInputsRef;
         
         // Initialize Firebase
-        try {
-            firebase.initializeApp(firebaseConfig);
-            database = firebase.database();
-            scheduleRef = database.ref('schedule');
-            userInputsRef = database.ref('userInputs');
-            firebaseInitialized = true;
-            
-            // Setup viewer tracking
-            setupViewerTracking();
-        } catch (error) {
-            firebaseInitialized = false;
+        function initializeFirebase() {
+            try {
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                }
+                database = firebase.database();
+                scheduleRef = database.ref('schedule');
+                userInputsRef = database.ref('userInputs');
+                firebaseInitialized = true;
+                console.log('Firebase initialized successfully');
+                return true;
+            } catch (error) {
+                console.error('Firebase initialization failed:', error);
+                firebaseInitialized = false;
+                return false;
+            }
         }
+        
+        // Initialize Firebase immediately
+        initializeFirebase();
         
         // Real-time sync functions
         function syncToFirebase() {
-            if (!firebaseInitialized) return;
+            if (!firebaseInitialized) {
+                if (!initializeFirebase()) return;
+            }
             const data = { 
                 currentTeam, 
                 availableEngineers, 
@@ -131,9 +141,14 @@
                 scheduleData, 
                 shiftLead, 
                 stepUpLead, 
+                editHistory,
                 lastUpdated: Date.now() 
             };
             console.log('Admin syncing to Firebase:', data);
+            
+            // Also save to localStorage as backup
+            localStorage.setItem('scheduleBackup', JSON.stringify(data));
+            
             scheduleRef.set(data).then(() => {
                 console.log('Admin sync successful');
                 window.lastUpdate = data.lastUpdated;
@@ -144,19 +159,25 @@
         
         function loadExistingData() {
             return new Promise((resolve) => {
+                // Try to initialize Firebase if not already done
                 if (!firebaseInitialized) {
-                    console.log('Firebase not initialized, using empty data');
-                    initializeScheduleData();
-                    resolve();
-                    return;
+                    console.log('Firebase not initialized, attempting to initialize...');
+                    if (!initializeFirebase()) {
+                        console.log('Firebase initialization failed, using empty data');
+                        initializeScheduleData();
+                        resolve();
+                        return;
+                    }
                 }
                 
                 console.log('Loading existing data from Firebase...');
                 
-                // Load schedule data
-                scheduleRef.once('value').then((snapshot) => {
+                // Add a small delay to ensure Firebase is fully ready
+                setTimeout(() => {
+                    // Load schedule data
+                    scheduleRef.once('value').then((snapshot) => {
                     const data = snapshot.val();
-                    if (data && data.scheduleData && Object.keys(data.scheduleData).length > 0) {
+                    if (data && (data.scheduleData || data.currentTeam)) {
                         console.log('Loaded existing schedule data:', data);
                         currentTeam = data.currentTeam || '';
                         availableEngineers = data.availableEngineers || [];
@@ -165,12 +186,13 @@
                         scheduleData = data.scheduleData || {};
                         shiftLead = data.shiftLead || '';
                         stepUpLead = data.stepUpLead || '';
+                        editHistory = data.editHistory || [];
                         window.lastUpdate = data.lastUpdated;
                         
-                        console.log('Data loaded successfully - Team:', currentTeam, 'Schedule slots:', Object.keys(scheduleData).length);
+                        console.log('Data loaded successfully - Team:', currentTeam, 'Schedule slots:', Object.keys(scheduleData).length, 'History entries:', editHistory.length);
                     } else {
-                        console.log('No existing schedule data found, initializing empty');
-                        initializeScheduleData();
+                        console.log('No existing schedule data found, trying localStorage backup...');
+                        loadFromLocalStorageBackup();
                     }
                     
                     // Load user inputs
@@ -180,12 +202,37 @@
                     userInputs = data || {};
                     console.log('Loaded existing user inputs:', Object.keys(userInputs).length, 'entries');
                     resolve();
-                }).catch((error) => {
-                    console.error('Error loading existing data:', error);
-                    initializeScheduleData();
-                    resolve();
-                });
+                    }).catch((error) => {
+                        console.error('Error loading existing data:', error);
+                        initializeScheduleData();
+                        resolve();
+                    });
+                }, 500); // 500ms delay to ensure Firebase is ready
             });
+        }
+        
+        function loadFromLocalStorageBackup() {
+            try {
+                const backup = localStorage.getItem('scheduleBackup');
+                if (backup) {
+                    const data = JSON.parse(backup);
+                    console.log('Loading from localStorage backup:', data);
+                    currentTeam = data.currentTeam || '';
+                    availableEngineers = data.availableEngineers || [];
+                    extraEngineers = data.extraEngineers || [];
+                    engineersOff = data.engineersOff || [];
+                    scheduleData = data.scheduleData || {};
+                    shiftLead = data.shiftLead || '';
+                    stepUpLead = data.stepUpLead || '';
+                    editHistory = data.editHistory || [];
+                    return true;
+                }
+            } catch (error) {
+                console.error('Error loading localStorage backup:', error);
+            }
+            console.log('No localStorage backup found, initializing empty');
+            initializeScheduleData();
+            return false;
         }
         
         function setupRealtimeSync() {
@@ -204,6 +251,7 @@
                     scheduleData = data.scheduleData || {};
                     shiftLead = data.shiftLead || '';
                     stepUpLead = data.stepUpLead || '';
+                    editHistory = data.editHistory || [];
                     window.lastUpdate = data.lastUpdated;
                     updateDisplayFromSync();
                     updateLiveStatus(); // Force live status update
@@ -248,6 +296,7 @@
             updateExtraEngineersDisplay();
             updateEngineersOffDisplay();
             updateScheduleTable();
+            updateEditHistoryDisplay(); // Always update edit history display
             updateLiveStatus();
         }
         
@@ -326,6 +375,7 @@
             }
             
             updateEditHistoryDisplay();
+            syncToFirebase(); // Sync edit history to Firebase immediately
         }
         
         function updateEditHistoryDisplay() {
@@ -348,7 +398,10 @@
         }
         
         function setupViewerTracking() {
-            if (!firebaseInitialized || !currentUsername) return;
+            if (!firebaseInitialized) {
+                if (!initializeFirebase()) return;
+            }
+            if (!currentUsername) return;
             
             const viewersRef = database.ref('viewers/admin');
             myViewerRef = viewersRef.push();
@@ -412,9 +465,24 @@
                 return;
             }
             
+            console.log('Initializing dashboard for user:', currentUsername);
+            
+            // Ensure Firebase is initialized
+            if (!firebaseInitialized) {
+                console.log('Firebase not ready, initializing...');
+                initializeFirebase();
+            }
+            
+            // Setup viewer tracking first
+            setupViewerTracking();
+            
             // Load existing data from Firebase first, then setup real-time sync
             loadExistingData().then(() => {
                 setupRealtimeSync();
+                // Force UI update after data is loaded
+                setTimeout(() => {
+                    updateDisplayFromSync();
+                }, 100);
             });
             document.getElementById('app').innerHTML = `
                 <div class="main-content">
@@ -524,9 +592,16 @@
                     </div>
                 </div>`;
             attachEventListeners();
-            updateDashboard();
-            updateExtraEngineerDropdown();
-            updateEngineerOffDropdown();
+            
+            // Wait for data to load before updating UI
+            setTimeout(() => {
+                updateDashboard();
+                updateExtraEngineerDropdown();
+                updateEngineerOffDropdown();
+                updateEditHistoryDisplay();
+                console.log('UI updated with loaded data');
+            }, 200);
+            
             startTimeClock();
         }
         
