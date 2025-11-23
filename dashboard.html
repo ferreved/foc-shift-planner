@@ -320,26 +320,27 @@
                     stepUpLead = data.stepUpLead || '';
                     console.log('Updated dashboard with:', { currentTeam, shiftLead, stepUpLead, scheduleData });
                     updateDashboard();
+                    updateLiveStatus(); // Force live status update
                 } else {
                     console.warn('No schedule data received from Firebase');
+                    loadSampleData(); // Load sample data if no Firebase data
                 }
             }, (error) => {
                 console.error('Firebase schedule listener error:', error);
+                loadSampleData(); // Fallback to sample data on error
             });
             
             // Listen to user inputs (breaks/meetings)
             breaksRef.on('value', (snapshot) => {
                 const data = snapshot.val();
                 console.log('Dashboard received user inputs:', data);
-                if (data) {
-                    userInputs = data;
-                    updateDashboard();
-                } else {
-                    console.log('No user inputs data');
-                    userInputs = {};
-                }
+                userInputs = data || {};
+                updateDashboard();
+                updateLiveStatus(); // Force live status update when user inputs change
             }, (error) => {
                 console.error('Firebase user inputs listener error:', error);
+                userInputs = {};
+                updateDashboard();
             });
         }
         
@@ -409,7 +410,39 @@
         }
         
         function initDashboard() {
+            console.log('Initializing dashboard...');
             setupRealtimeSync();
+            
+            // Force initial data load
+            if (firebaseInitialized) {
+                console.log('Loading initial data from Firebase...');
+                scheduleRef.once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        scheduleData = data.scheduleData || {};
+                        currentTeam = data.currentTeam || 'A';
+                        shiftLead = data.shiftLead || '';
+                        stepUpLead = data.stepUpLead || '';
+                        console.log('Initial data loaded:', { currentTeam, shiftLead, stepUpLead });
+                        updateDashboard();
+                    }
+                }).catch(error => {
+                    console.error('Failed to load initial schedule data:', error);
+                    loadSampleData();
+                });
+                
+                breaksRef.once('value').then((snapshot) => {
+                    const data = snapshot.val();
+                    userInputs = data || {};
+                    console.log('Initial user inputs loaded:', userInputs);
+                    updateDashboard();
+                }).catch(error => {
+                    console.error('Failed to load initial user inputs:', error);
+                });
+            } else {
+                loadSampleData();
+            }
+            
             document.getElementById('app').innerHTML = `
                 <div class="main-content" style="margin: 20px;">
                     
@@ -714,32 +747,48 @@
         function updateEngineerDropdowns() {
             const scheduledEngineers = getScheduledEngineers();
             
-            // Update break engineer dropdown
+            // Update break engineer dropdown - only show scheduled engineers
             const breakSelect = document.getElementById('break-engineer');
             if (breakSelect) {
                 const currentValue = breakSelect.value;
                 breakSelect.innerHTML = '<option value="">Select Engineer</option>';
-                scheduledEngineers.forEach(engineer => {
+                if (scheduledEngineers.length === 0) {
                     const option = document.createElement('option');
-                    option.value = engineer;
-                    option.textContent = engineer;
-                    if (engineer === currentValue) option.selected = true;
+                    option.value = '';
+                    option.textContent = 'No engineers scheduled';
+                    option.disabled = true;
                     breakSelect.appendChild(option);
-                });
+                } else {
+                    scheduledEngineers.forEach(engineer => {
+                        const option = document.createElement('option');
+                        option.value = engineer;
+                        option.textContent = engineer;
+                        if (engineer === currentValue) option.selected = true;
+                        breakSelect.appendChild(option);
+                    });
+                }
             }
             
-            // Update meeting engineer dropdown
+            // Update meeting engineer dropdown - only show scheduled engineers
             const meetingSelect = document.getElementById('meeting-engineer');
             if (meetingSelect) {
                 const currentValue = meetingSelect.value;
                 meetingSelect.innerHTML = '<option value="">Select Engineer</option>';
-                scheduledEngineers.forEach(engineer => {
+                if (scheduledEngineers.length === 0) {
                     const option = document.createElement('option');
-                    option.value = engineer;
-                    option.textContent = engineer;
-                    if (engineer === currentValue) option.selected = true;
+                    option.value = '';
+                    option.textContent = 'No engineers scheduled';
+                    option.disabled = true;
                     meetingSelect.appendChild(option);
-                });
+                } else {
+                    scheduledEngineers.forEach(engineer => {
+                        const option = document.createElement('option');
+                        option.value = engineer;
+                        option.textContent = engineer;
+                        if (engineer === currentValue) option.selected = true;
+                        meetingSelect.appendChild(option);
+                    });
+                }
             }
         }
         
@@ -1039,7 +1088,8 @@
             
             updateTime();
             setInterval(updateTime, 1000);
-            setInterval(updateDashboard, 30000); // Refresh every 30 seconds
+            setInterval(updateDashboard, 10000); // Refresh every 10 seconds
+            setInterval(updateLiveStatus, 5000); // Update live status every 5 seconds
             setInterval(updateOutOfOpsLive, 1000); // Update out-of-ops every second for live countdown
         }
         
